@@ -9,19 +9,19 @@ class Utility(commands.Cog):
         self.bot = bot
 
     @staticmethod
-    def format_period(seconds: int) -> str:
+    async def format_period(seconds: int) -> str:
         days = int(seconds / 60 / 60 / 24)
         seconds %= (60 * 60 * 24)
         hours = int(seconds / 60 / 60)
         seconds %= (60 * 60)
         minutes = int(seconds / 60)
-        return f'{days}d {hours}h {minutes}m'
+        return f'{days}d {hours}h {minutes}m {int(seconds % 60)}s'
 
     @commands.command(
         name = 'uptime',
         description = 'Returns the current uptime of Aika.')
     async def uptime(self, ctx) -> None:
-        await ctx.send(f'Aika has been running for {self.format_period(time() - glob.start_time)}.')
+        await ctx.send(f"I've been running for **{await self.format_period(time() - glob.start_time)}**.")
 
 def setup(bot: commands.Bot):
     bot.add_cog(Utility(bot))

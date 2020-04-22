@@ -32,8 +32,7 @@ with open(f'{path.dirname(path.realpath(__file__))}/config.json', 'r+') as f:
 
 # Attempt to connect to SQL
 try: glob.db = dbConnector.SQLPool(
-    pool_size = 4,
-    config = {
+    pool_size = 4, config = {
         'user': glob.config['mysql']['user'],
         'password': glob.config['mysql']['passwd'],
         'host': glob.config['mysql']['host'],
@@ -55,29 +54,41 @@ glob.bot = commands.Bot(
 )
 for i in glob.config['cogs']: glob.bot.load_extension(f'cogs.{i}')
 
+def filter_message(msg: str) -> bool:
+    return any(f in msg for f in glob.config['substring_filters']) \
+        or any(s in glob.config['filters'] for s in msg.split('\n'))
 
 """ Event handlers. """
 
 @glob.bot.event
 async def on_message(message: discord.Message) -> None:
     await glob.bot.wait_until_ready()
+    print(f'[{datetime.now():%H:%M%p} #{message.channel}] {message.author}: {message.clean_content}')
+
+    if glob.config['filters'] and filter_message(message.content.lower()):
+        print('Filtered message ^')
+        await message.delete()
+        return
 
     # TODO:
-    # - message filter? (maybe optional?)
     # - parse message to see if it is a:
     #   > report, rank request, etc.
 
-    print(f'[{datetime.now():%H:%M%p} #{message.channel}] {message.author}: {message.clean_content}')
     await glob.bot.process_commands(message)
 
 
 @glob.bot.event
 async def on_message_edit(before: discord.Message, after: discord.Message) -> None:
     await glob.bot.wait_until_ready()
+    print(f'[{datetime.now():%H:%M%p} #{after.channel}] {after.author}:* {after.clean_content}')
+
+    if glob.config['filters'] and filter_message(after.content.lower()):
+        print('Filtered message ^')
+        await after.delete()
+        return
 
     # TODO: same things as on_message()
 
-    print(f'[{datetime.now():%H:%M%p} #{after.channel}] {after.author}:* {after.clean_content}')
     await glob.bot.process_commands(after)
 
 
