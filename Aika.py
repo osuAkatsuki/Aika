@@ -26,27 +26,25 @@ with open(f'{path.dirname(path.realpath(__file__))}/config.json', 'r+') as f:
         print(f'\x1b[92mAika has been updated (v{glob.config["version"]} -> v{glob.version}).\x1b[0m')
         glob.config['version'] = glob.version
         f.seek(0)
-        dump(glob.config, f, sort_keys=True, indent=4)
+        dump(glob.config, f, sort_keys = True, indent = 4)
         f.truncate()
     elif glob.config['version'] > glob.version:
         raise Exception('\x1b[31mConfig is from a newer version of Aika?\x1b[0m')
 
 # Attempt to connect to SQL
-try: glob.db = dbConnector.SQLPool(
-    pool_size = 4, config = {
-        'user': glob.config['mysql']['user'],
-        'password': glob.config['mysql']['passwd'],
-        'host': glob.config['mysql']['host'],
-        'database': glob.config['mysql']['database']
-    }
-)
+try: glob.db = dbConnector.SQLPool(config = {
+    'user':     glob.config['mysql']['user'],
+    'password': glob.config['mysql']['passwd'],
+    'host':     glob.config['mysql']['host'],
+    'database': glob.config['mysql']['database']
+},  pool_size = 4)
 except SQLError as err:
     if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-        raise Exception('\x1b[31mSQLError: Something is wrong with your username or password.\x1b[0m')
+        raise Exception('\x1b[31mSQLError: Something is wrong with your username or password\x1b[0m')
     elif err.errno == errorcode.ER_BAD_DB_ERROR:
-        raise Exception('\x1b[31mSQLError: Database does not exist.\x1b[0m')
+        raise Exception('\x1b[31mSQLError: Database does not exist\x1b[0m')
     else: raise Exception(err)
-else: print('\x1b[32mSuccessfully connected to SQL.\x1b[0m')
+else: print('\x1b[32mSuccessfully connected to SQL\x1b[0m')
 
 glob.bot = commands.Bot(
     command_prefix = commands.when_mentioned_or(glob.config['command_prefix']),
@@ -99,17 +97,14 @@ async def on_ready() -> None:
     print(f'\x1b[32mSuccessfully logged in as {glob.bot.user.name}\x1b[0m')
 
     if glob.config['server_build'] and glob.mismatch:
-        await glob.bot.get_channel(glob.config['channels']['general']).send(
-            embed = discord.Embed(
-                title = f'Aika has been updated to v{glob.version:.2f}. (Previous: v{glob.mismatch:.2f})',
-                description = \
-                    "Ready for commands B)",#\n\n",
-                    #"Aika is cmyui's [open source](https://github.com/cmyui/Aika-v3) discord bot.\n\n"
-                    #"[cmyui](https://cmyui.codes/)\n"
-                    #"[Support cmyui](https://cmyui.codes/support/)",
-                color = randint(0, 0xffffff)))
+        await glob.bot.get_channel(glob.config['channels']['general']).send(embed = discord.Embed(
+            title = f'Aika has been updated to v{glob.version:.2f}. (Previous: v{glob.mismatch:.2f})',
+            description = 'Ready for commands B)', color = randint(0, 0xffffff))
+        )
 
-glob.bot.run(
-    glob.config['discord_token'],
-    bot = True, reconnect = True
-)
+if __name__ == '__main__':
+    glob.bot.run(
+        glob.config['discord_token'],
+        bot = True, reconnect = True
+    )
+    print(f'\x1b[38mSuccessfully logged out of {glob.bot.user.name}\x1b[0m')

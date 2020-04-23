@@ -40,7 +40,7 @@ class XP(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
-        await glob.bot.wait_until_ready()
+        await self.bot.wait_until_ready()
 
         if message.author.bot: return # Don't track levels for bots..
         await self.increment_xp(message.author.id)

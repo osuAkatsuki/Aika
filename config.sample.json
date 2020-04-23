@@ -1,0 +1,27 @@
+{
+    "channels": {
+        "general": 123456789012345678,
+        "voice": 123456789012345678
+    },
+    "cogs": [
+        "xp",
+        "utility"
+    ],
+    "command_prefix": "!",
+    "discord_owner_userid": 123456789012345678,
+    "discord_token": "Bot's Discord token here",
+    "filters": [
+        "single", "word", "matches"
+    ],
+    "substring_filters": [
+        "sub w-", "ord", "mat", "ches"
+    ],
+    "mysql": {
+        "database": "",
+        "host": "",
+        "passwd": "",
+        "user": ""
+    },
+    "server_build": false,
+    "version": 3.0
+}
