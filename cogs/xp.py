@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from math import log
+from math import log, pow
 from typing import Union
 from time import time
 from random import randrange
@@ -58,8 +58,7 @@ class XP(commands.Cog):
         aliases = ['levelreq'])
     async def get_level_requirement(self, ctx) -> None:
         # TODO: check ctx
-        a = ctx.message.content.split()
-        await ctx.send(f'**XP Required**: {1.23 ^ int(ctx.message.content.split()[1]):.2f}') # 6553.4
+        await ctx.send(f'**XP Required**: {pow(1.23, int(ctx.message.content.split(maxsplit=1)[1])):.2f}')
 
 def setup(bot: commands.Bot):
     bot.add_cog(XP(bot))
