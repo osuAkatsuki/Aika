@@ -62,6 +62,7 @@ def filter_message(msg: str) -> bool:
 @glob.bot.event
 async def on_message(message: discord.Message) -> None:
     await glob.bot.wait_until_ready()
+    if not message.content: return
 
     filtered: bool = glob.config['filters'] and filter_message(message.content.lower())
     print(f'\x1b[{91 if filtered else 96}m[{datetime.now():%H:%M%p} #{message.channel}]\x1b[38;5;244m {message.author}\x1b[0m: {message.clean_content}')
@@ -79,6 +80,7 @@ async def on_message(message: discord.Message) -> None:
 @glob.bot.event
 async def on_message_edit(before: discord.Message, after: discord.Message) -> None:
     await glob.bot.wait_until_ready()
+    if not after.content: return
 
     filtered: bool = glob.config['filters'] and filter_message(after.content.lower())
     print(f'\x1b[{91 if filtered else 93}m[{datetime.now():%H:%M%p} #{after.channel}]\x1b[38;5;244m {after.author}\x1b[0m: {after.clean_content}')

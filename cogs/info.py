@@ -25,21 +25,36 @@ class Info(commands.Cog):
         aliases = ['info', 'help', 'answer']
     )
     async def get_faq(self, ctx) -> None:
-        if len(split := ctx.message.content.split(' ')) != 2:
-            await ctx.send('Invalid syntax.')
-            return
+        # TODO fix: you can do something like !faq cert 2 (if id for cert was 2) to print a callback twice.
 
-        _type: bool = split[1].isdigit()
-        if len(_faq := [x for x in self.faq if str(x['id' if _type else 'topic']) == split[1]]) and (_faq := _faq[0]):
-            await ctx.send(embed = discord.Embed(
-                title = _faq['title'],
-                description = _faq['content']
-            ))
-        else:
+        if len(split := list(dict.fromkeys(ctx.message.content.split(' ')))) not in range(2, 5):
             await ctx.send(embed = discord.Embed(
                 title = 'Available topics',
                 description = '\n'.join(f'**{i["id"]}**. {i["topic"]}' for i in self.faq)
             ))
+            return
+
+        invalid: List[Dict[str, Union[int, str]]] = []
+        types: List[str] = []
+
+        for i in split[1:]:
+            types.append('id' if i.isdigit() else 'topic')
+            for f in self.faq:
+                if i == str(f[types[-1]]): break
+            else:
+                invalid.append(i)
+
+        if invalid:
+            await ctx.send(f'The following callbacks could not be resolved: {", ".join(invalid)}.')
+            return
+
+        for idx, uinput in enumerate(split[1:]): # TODO: heavily ratelimit
+            if len(select := [f for f in self.faq if str(f[types[idx]]) == uinput]) and (select := select[0]):
+                embed = discord.Embed(title = select['title'], description = select['content'])
+                embed.set_footer(text = f'Aika v{glob.version}')
+                embed.set_thumbnail(url = glob.config['thumbnails']['faq'])
+                await ctx.send(embed = embed)
+
 
     @commands.command(
         name = 'addfaq',
@@ -52,6 +67,11 @@ class Info(commands.Cog):
             await ctx.send('Invalid syntax.\n> Correct syntax: `topic|title|content`')
             return
 
+        # topic cannot be an int or it will break id/topic search
+        if split[0].isdigit():
+            await ctx.send('Topic name cannot be a number (it may include them, but not be limited to just numbers).')
+            return
+
         # Handle separately for premium feel i guess..
         if len(split[0]) > 0x20: # 32 (2*16)
             await ctx.send(f'Your topic is {len(split[0]) - 0x20} characters too long.')
@@ -62,7 +82,7 @@ class Info(commands.Cog):
         elif len(split[2]) > 0x400: # 1024 (4*256)
             await ctx.send(f'Your content is {len(split[2]) - 0x400} characters too long.')
             return
-        else: self._add_faq(*split)
+        else: self._add_faq(*(s.strip() for s in split))
 
 def setup(bot: commands.Bot):
     bot.add_cog(Info(bot))
