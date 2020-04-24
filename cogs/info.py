@@ -1,6 +1,7 @@
 from typing import Optional, Tuple, Dict, Union
 import discord
 from discord.ext import commands
+from time import time
 
 from objects import glob
 
@@ -11,13 +12,21 @@ class Info(commands.Cog):
 
     def _load_faq(self) -> Tuple[Dict[str, Union[int, str]]]:
         if not (res := glob.db.fetchall('SELECT * FROM aika_faq ORDER BY id ASC')):
-            raise Exception('FAQ cog enabled, but FAQ empty in database!')
+            raise Exception('\x1b[31mFAQ cog enabled, but FAQ empty in database!\x1b[0m')
         return tuple(res)
 
     def _add_faq(self, topic: str, title: str, content: str) -> None:
         print(f'\x1b[32mAdding new FAQ topic - {topic}\x1b[0m')
         glob.db.execute('INSERT INTO aika_faq (id, topic, title, content) VALUES (NULL, %s, %s, %s)', [topic, title, content])
         self.faq = self._load_faq() # suboptimal but so rare who cares?
+
+    # TODO: _rm_faq(), although this will be a bit weird with id & topic valid..
+
+    @staticmethod
+    async def _blocked_until(userID: int) -> bool:
+        res = glob.db.fetch('SELECT faq_cooldown FROM aika_users WHERE id = %s', [userID])
+        return res['faq_cooldown'] if res and res['faq_cooldown'] else True # true incase they don't exist in db.
+                                                                                     # they will next call!
 
     @commands.command(
         name = 'faq',
@@ -48,13 +57,19 @@ class Info(commands.Cog):
             await ctx.send(f'The following callbacks could not be resolved: {", ".join(invalid)}.')
             return
 
-        for idx, uinput in enumerate(split[1:]): # TODO: heavily ratelimit
+        if (blocked := await self._blocked_until(ctx.author.id) - time()) > 0:
+            await ctx.send(f'You must first wait {blocked:.2f} more seconds..')
+            return
+
+        # ratelimit 3 seconds per faq callback (max 9s limit)
+        glob.db.execute('UPDATE aika_users SET faq_cooldown = UNIX_TIMESTAMP() + (3 * %s) WHERE id = %s', [len(split[1:]), ctx.author.id])
+
+        for idx, uinput in enumerate(split[1:]):
             if len(select := [f for f in self.faq if str(f[types[idx]]) == uinput]) and (select := select[0]):
                 embed = discord.Embed(title = select['title'], description = select['content'])
                 embed.set_footer(text = f'Aika v{glob.version}')
                 embed.set_thumbnail(url = glob.config['thumbnails']['faq'])
                 await ctx.send(embed = embed)
-
 
     @commands.command(
         name = 'addfaq',
@@ -66,6 +81,7 @@ class Info(commands.Cog):
         if len(split := ctx.message.content.split(maxsplit=1)[1].split('|')) != 3:
             await ctx.send('Invalid syntax.\n> Correct syntax: `topic|title|content`')
             return
+        else: split = [s.strip() for s in split]
 
         # topic cannot be an int or it will break id/topic search
         if split[0].isdigit():
@@ -82,7 +98,7 @@ class Info(commands.Cog):
         elif len(split[2]) > 0x400: # 1024 (4*256)
             await ctx.send(f'Your content is {len(split[2]) - 0x400} characters too long.')
             return
-        else: self._add_faq(*(s.strip() for s in split))
+        else: self._add_faq(*split)
 
 def setup(bot: commands.Bot):
     bot.add_cog(Info(bot))

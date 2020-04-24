@@ -5,7 +5,8 @@
     },
     "cogs": [
         "xp",
-        "utility"
+        "utility",
+        "info"
     ],
     "command_prefix": "!",
     "discord_owner_userid": 123456789012345678,
@@ -23,5 +24,13 @@
         "user": ""
     },
     "server_build": false,
-    "version": 3.0
+    "version": 3.0,
+    "thumbnails": {
+        "faq": "https://link.to/faq_thumbnail.png"
+    },
+    "xp": {
+        "ratelimit": 60,
+        "min_gain": 2,
+        "max_gain": 7
+    }
 }

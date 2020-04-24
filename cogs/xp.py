@@ -12,38 +12,61 @@ class XP(commands.Cog):
         self.bot = bot
 
     @staticmethod
-    async def _set_xp(userID: int, xp: Union[int, float]) -> None:
+    async def _set_xp(userID: int, xp: int) -> None:
         glob.db.execute(
-            'INSERT INTO aika_xp (user, xp, last_claimed) VALUES (%s, 0, 0)' \
-            'ON DUPLICATE KEY UPDATE xp = %s', [userID, xp]
+            'INSERT INTO aika_users (id) VALUES (%s)' \
+            'ON DUPLICATE KEY UPDATE xp = %s,' \
+            'xp_cooldown = UNIX_TIMESTAMP()', [userID, xp]
         )
 
     @staticmethod
-    async def _get_xp(userID: int) -> float:
-        res = glob.db.fetch('SELECT xp FROM aika_xp WHERE user = %s', [userID])
+    async def _get_xp(userID: int) -> int:
+        res = glob.db.fetch('SELECT xp FROM aika_users WHERE id = %s', [userID])
         return res['xp'] if res and res['xp'] else 0.0
 
     @staticmethod # checks if the user has waited for the ratelimit
-    async def _valid_claim(userID: int) -> bool:
-        res = glob.db.fetch('SELECT UNIX_TIMESTAMP() - last_claimed AS t FROM aika_xp WHERE user = %s', [userID])
-        return res['t'] > 60 if res and res['t'] else True # return true so we start the user off if they're new and don't have a row
+    async def _blocked_until(userID: int) -> bool:
+        res = glob.db.fetch('SELECT xp_cooldown AS xp_cd FROM aika_users WHERE id = %s', [userID])
+        return res['xp_cd'] if res and res['xp_cd'] else True # return true so we start the user off
+                                                              # if they're new and don't have an acc
 
     async def increment_xp(self, userID: int) -> None:
-        if await self._valid_claim(userID):
+        if (await self._blocked_until(userID) - time()) <= 0:
             glob.db.execute( # Insert user if they don't already exist.
-                'INSERT INTO aika_xp (user, xp, last_claimed) VALUES (%s, 0, UNIX_TIMESTAMP())' \
-                'ON DUPLICATE KEY UPDATE xp = xp + %s, last_claimed = UNIX_TIMESTAMP()',
-                [userID, randrange(2, 7)]
+                'INSERT INTO aika_users (id) VALUES (%s)' \
+                'ON DUPLICATE KEY UPDATE xp = xp + %s,' \
+                'xp_cooldown = UNIX_TIMESTAMP() + %s',
+                [
+                    userID,
+                    randrange(glob.config['xp']['min_gain'],
+                              glob.config['xp']['max_gain']),
+                    glob.config['xp']['ratelimit']
+                ]
             )
 
     # TODO: level system? probably something logarithmic in relation to xp
+
+    # sadly the listeners are called after the main listeners meaning there isn't really a clean
+    # way to increment xp before displying their xp a user types !xp, so if they can gain xp, the
+    # data will always be out of date lol..
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         await self.bot.wait_until_ready()
 
-        if message.author.bot: return # Don't track levels for bots..
+        if not message.content or message.author.bot:
+            return # Don't track xp for images & bots..
+
         await self.increment_xp(message.author.id)
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
+        await self.bot.wait_until_ready()
+
+        if not after.content or after.author.bot:
+            return # Don't track xp for images & bots..
+
+        await self.increment_xp(after.author.id)
 
     @commands.command(
         name = 'xp',
