@@ -12,6 +12,8 @@ config: Optional[Any] = None
 debug: bool = False
 mismatch: bool = False
 bot: Optional[Bot] = None
+loop = None
+shutdown = False # used for async loop
 
 # unused for now
 # beatmap_regexes: Tuple[Any] = (

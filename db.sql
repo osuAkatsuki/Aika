@@ -2,7 +2,6 @@ CREATE TABLE `aika_users` (
   `id` bigint(20) NOT NULL,
   `xp` int(11) NOT NULL DEFAULT '0',
   `xp_cooldown` int(11) NOT NULL DEFAULT '0',
-  `faq_cooldown` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `aika_users_id_uindex` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1

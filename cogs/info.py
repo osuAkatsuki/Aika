@@ -22,18 +22,13 @@ class Info(commands.Cog):
 
     # TODO: _rm_faq(), although this will be a bit weird with id & topic valid..
 
-    @staticmethod
-    async def _blocked_until(userID: int) -> bool:
-        res = glob.db.fetch('SELECT faq_cooldown FROM aika_users WHERE id = %s', [userID])
-        return res['faq_cooldown'] if res and res['faq_cooldown'] else True # true incase they don't exist in db.
-                                                                                     # they will next call!
-
+    @commands.cooldown(1, 3, commands.BucketType.default) # 3s cooldown global
+    @commands.cooldown(1, 6, commands.BucketType.user)    # 6s cooldown for users
     @commands.command(
-        name = 'faq',
         description = 'Retrieve the answer to one of our frequently asked questions from our database.',
-        aliases = ['info', 'help', 'answer']
+        aliases     = ['info', 'help', 'answer']
     )
-    async def get_faq(self, ctx) -> None:
+    async def faq(self, ctx: commands.Context) -> None:
         # TODO fix: you can do something like !faq cert 2 (if id for cert was 2) to print a callback twice.
 
         if len(split := list(dict.fromkeys(ctx.message.content.split(' ')))) not in range(2, 5):
@@ -57,26 +52,21 @@ class Info(commands.Cog):
             await ctx.send(f'The following callbacks could not be resolved: {", ".join(invalid)}.')
             return
 
-        if (blocked := await self._blocked_until(ctx.author.id) - time()) > 0:
-            await ctx.send(f'You must first wait {blocked:.2f} more seconds..')
-            return
-
-        # ratelimit 3 seconds per faq callback (max 9s limit)
-        glob.db.execute('UPDATE aika_users SET faq_cooldown = UNIX_TIMESTAMP() + (3 * %s) WHERE id = %s', [len(split[1:]), ctx.author.id])
-
         for idx, uinput in enumerate(split[1:]):
             if len(select := [f for f in self.faq if str(f[types[idx]]) == uinput]) and (select := select[0]):
-                embed = discord.Embed(title = select['title'], description = select['content'])
+                embed = discord.Embed(
+                    title = select['title'],
+                    description = select['content'].format(**glob.config['faq_replacements'])
+                )
                 embed.set_footer(text = f'Aika v{glob.version}')
                 embed.set_thumbnail(url = glob.config['thumbnails']['faq'])
                 await ctx.send(embed = embed)
 
     @commands.command(
-        name = 'addfaq',
         description = 'Allows an administrator to add an FAQ object to the database.',
-        aliases = ['newfaq'])
+        aliases     = ['newfaq'])
     @commands.has_guild_permissions(ban_members = True) # somewhat arbitrary..
-    async def add_faq(self, ctx) -> None:
+    async def addfaq(self, ctx: commands.Context) -> None:
         # format: topic|title|content
         if len(split := ctx.message.content.split(maxsplit=1)[1].split('|')) != 3:
             await ctx.send('Invalid syntax.\n> Correct syntax: `topic|title|content`')

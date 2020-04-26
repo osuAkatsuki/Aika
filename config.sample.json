@@ -4,7 +4,7 @@
         "voice": 123456789012345678
     },
     "cogs": [
-        "xp",
+        "user",
         "utility",
         "info"
     ],
@@ -32,5 +32,13 @@
         "ratelimit": 60,
         "min_gain": 2,
         "max_gain": 7
+    },
+    "faq_replacements": {
+        "key": "val"
+    },
+    "bg_loop_interval": 10,
+    "cooldowns": {
+        "default_user_count": 3,
+        "default_user_per": 5
     }
 }
