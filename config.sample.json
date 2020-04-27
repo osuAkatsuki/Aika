@@ -40,5 +40,6 @@
     "cooldowns": {
         "default_user_count": 3,
         "default_user_per": 5
-    }
+    },
+    "embed_color": 123456
 }

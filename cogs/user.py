@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from math import log, pow
-from typing import Union
+from typing import Union, Optional
 from time import time
 from random import randrange
 
@@ -72,41 +72,73 @@ class User(commands.Cog):
 
         self.increment_xp(after.author.id)
 
-    @commands.cooldown(
-        glob.config['cooldowns']['default_user_count'],
-        glob.config['cooldowns']['default_user_per'],
-        commands.BucketType.user)
     @commands.command(
         description = 'Display your profile.',
         aliases     = ['profile'])
-    async def user(self, ctx: commands.Context) -> None:
-        embed = discord.Embed(title = 'User stats')
-        embed.set_author(name = ctx.author.name, icon_url = ctx.author.avatar_url)
-        embed.add_field(name = 'Level', value = round(self._get_level(ctx.author.id), 2))
-        embed.add_field(name = 'Experience', value = round(self._get_xp(ctx.author.id), 2))
-        embed.add_field(name = 'Account creation', value = ctx.author.created_at)
-        embed.set_footer(text = f'Aika v{glob.version}')
-        await ctx.send(embed = embed) # TODO: cmyui.codes/u/ profiles?
-
     @commands.cooldown(
         glob.config['cooldowns']['default_user_count'],
         glob.config['cooldowns']['default_user_per'],
         commands.BucketType.user)
+    async def user(self, ctx: commands.Context) -> None:
+        embed = discord.Embed(title = 'User stats', color = glob.config['embed_color'])
+        embed.set_author(name = ctx.author.name, icon_url = ctx.author.avatar_url)
+        embed.add_field(name = 'Level', value = round(self._get_level(ctx.author.id), 2))
+        embed.add_field(name = 'Experience', value = round(self._get_xp(ctx.author.id), 2))
+        embed.add_field(name = 'Account creation', value = ctx.author.created_at.strftime('%c'))
+        embed.set_footer(text = f'Aika v{glob.version}')
+        await ctx.send(embed = embed) # TODO: cmyui.codes/u/ profiles?
+
     @commands.command(
         description = 'Checks the XP required for a specified level.',
         aliases     = ['lvreq'])
+    @commands.cooldown(
+        glob.config['cooldowns']['default_user_count'],
+        glob.config['cooldowns']['default_user_per'],
+        commands.BucketType.user)
     async def levelreq(self, ctx: commands.Context) -> None:
         # TODO: check ctx
         await ctx.send(f'**XP Required**: {pow(1.5, int(ctx.message.content.split(maxsplit=1)[1])):.2f}')
     # TODO: !user help for all cmds
 
+    @commands.command(
+        description = 'Display the Level/XP global leaderboard.',
+        aliases     = ['lvtop', 'xptop', 'xplb', 'lb', 'leaderboard'])
     @commands.cooldown(
         glob.config['cooldowns']['default_user_count'],
         glob.config['cooldowns']['default_user_per'],
         commands.BucketType.user)
+    async def xpleaderboard(self, ctx: commands.Context) -> None:
+        if not (res := glob.db.fetchall('SELECT id, xp FROM aika_users WHERE xp > 0 ORDER BY xp DESC LIMIT 5')):
+            await ctx.send('aika_users is empty.')
+            return
+
+        embed = discord.Embed(
+            title = 'XP/Level Leaderboards',
+            color = glob.config['embed_color'])
+        embed.set_footer(text = f'Aika v{glob.version}')
+
+        for i in res:
+            user: Optional[discord.User] = glob.bot.get_user(i['id'])
+            embed.add_field(
+                name = user.name if user else f'Unknown (ID: {i["id"]})',
+                value = f'Lv. **{log(i["xp"]) / log(1.5):.2f}** ({i["xp"]}xp)'
+            )
+
+        average: int = sum(i['xp'] for i in res) / len(res)
+        embed.add_field(
+            name = 'Top-5 Average',
+            value = f'Lv. **{log(average) / log(1.5):.2f}** ({average:.2f} xp)'
+        )
+
+        await ctx.send(embed = embed)
+
     @commands.command(
         description = 'Checks your level & experience.',
-        aliases     = ['getlv', 'checklv'])
+        aliases     = ['lv', 'getlv', 'checklv'])
+    @commands.cooldown(
+        glob.config['cooldowns']['default_user_count'],
+        glob.config['cooldowns']['default_user_per'],
+        commands.BucketType.user)
     async def level(self, ctx: commands.Context) -> None:
         await ctx.send(f'You are currently lv{self._get_level(ctx.author.id):.2f} ({self._get_xp(ctx.author.id):.2f} xp).')
 

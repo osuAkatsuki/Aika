@@ -13,7 +13,8 @@ debug: bool = False
 mismatch: bool = False
 bot: Optional[Bot] = None
 loop = None
-shutdown = False # used for async loop
+shutdown: bool = False # used for async loop
+locked: bool = False
 
 # unused for now
 # beatmap_regexes: Tuple[Any] = (

@@ -104,7 +104,7 @@ async def on_ready() -> None:
     if glob.config['server_build'] and glob.mismatch:
         await glob.bot.get_channel(glob.config['channels']['general']).send(embed = discord.Embed(
             title = f'Aika has been updated to v{glob.version:.2f}. (Previous: v{glob.mismatch:.2f})',
-            description = 'Ready for commands B)', color = randint(0, 0xffffff)) # TODO: pick a constant color?
+            description = 'Ready for commands B)', color = glob.config['embed_color']) # TODO: pick a constant color?
         )
 
 @glob.bot.event
@@ -113,12 +113,11 @@ async def on_command_error(ctx: commands.Context, error: discord.ext.commands.er
         await ctx.send(f'{ctx.author.mention} that command is still on cooldown for another **{error.retry_after:.2f}** seconds.')
     elif isinstance(error, discord.ext.commands.CommandNotFound):
         await ctx.send(f"{ctx.author.mention} I couldn't find a command by that name..")
-    elif isinstance(error, discord.ext.commands.NotOwner):
-        pass
     elif isinstance(error, discord.ext.commands.CommandInvokeError):
         embed = discord.Embed(
             title = 'Exception traceback',
-            description = 'Error encountered while invoking command.'
+            description = 'Error encountered while invoking command.',
+            color = glob.config['embed_color']
         )
         embed.set_footer(text = f'Aika v{glob.version}')
         embed.add_field(name = 'Type', value = type(error.original))
@@ -126,9 +125,10 @@ async def on_command_error(ctx: commands.Context, error: discord.ext.commands.er
             embed.add_field(name = f'arg{idx}', value = arg)
 
         await ctx.send(embed = embed)
+    elif isinstance(error, discord.ext.commands.NotOwner):
+        pass
     else:
         print(f'\x1b[31mUnhandled error of type {type(error)}\x1b[0m')
-        pass
 
 async def _background_loop():
     while not glob.bot.is_ready():

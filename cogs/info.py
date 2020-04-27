@@ -34,7 +34,8 @@ class Info(commands.Cog):
         if len(split := list(dict.fromkeys(ctx.message.content.split(' ')))) not in range(2, 5):
             await ctx.send(embed = discord.Embed(
                 title = 'Available topics',
-                description = '\n'.join(f'**{i["id"]}**. {i["topic"]}' for i in self.faq)
+                description = '\n'.join(f'**{i["id"]}**. {i["topic"]}' for i in self.faq),
+                color = glob.config['embed_color']
             ))
             return
 
@@ -56,7 +57,8 @@ class Info(commands.Cog):
             if len(select := [f for f in self.faq if str(f[types[idx]]) == uinput]) and (select := select[0]):
                 embed = discord.Embed(
                     title = select['title'],
-                    description = select['content'].format(**glob.config['faq_replacements'])
+                    description = select['content'].format(**glob.config['faq_replacements']),
+                    color = glob.config['embed_color']
                 )
                 embed.set_footer(text = f'Aika v{glob.version}')
                 embed.set_thumbnail(url = glob.config['thumbnails']['faq'])
