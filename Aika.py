@@ -18,7 +18,7 @@ from objects import glob
 
 with open(f'{path.dirname(path.realpath(__file__))}/config.json', 'r+') as f:
     if f.seek(0, SEEK_END) and f.tell(): f.seek(0)
-    else: raise Exception('\x1b[31mconfig.json is empty!\x1b[0m')
+    else: raise Exception('config.json is empty!')
 
     glob.config = loads(f.read())
     glob.mismatch = glob.config['version'] < glob.version
@@ -30,7 +30,7 @@ with open(f'{path.dirname(path.realpath(__file__))}/config.json', 'r+') as f:
         dump(glob.config, f, sort_keys = True, indent = 4)
         f.truncate()
     elif glob.config['version'] > glob.version:
-        raise Exception('\x1b[31mconfig.json is from a newer version of Aika?\x1b[0m')
+        raise Exception('config.json is from a newer version of Aika?')
 
 # Attempt to connect to SQL
 try: glob.db = dbConnector.SQLPool(config = {
@@ -41,11 +41,11 @@ try: glob.db = dbConnector.SQLPool(config = {
 },  pool_size = 4)
 except SQLError as err:
     if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-        raise Exception('\x1b[31mSQLError: Something is wrong with your username or password\x1b[0m')
+        raise Exception('SQLError: Something is wrong with your username or password')
     elif err.errno == errorcode.ER_BAD_DB_ERROR:
-        raise Exception('\x1b[31mSQLError: Database does not exist\x1b[0m')
+        raise Exception('SQLError: Database does not exist')
     else: raise Exception(err)
-else: print('\x1b[32mSuccessfully connected to SQL\x1b[0m')
+else: print('Successfully connected to SQL')
 
 glob.bot = commands.Bot(
     command_prefix = commands.when_mentioned_or(glob.config['command_prefix']),

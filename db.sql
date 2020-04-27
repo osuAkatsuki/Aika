@@ -4,7 +4,7 @@ CREATE TABLE `aika_users` (
   `xp_cooldown` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `aika_users_id_uindex` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE `aika_faq` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
