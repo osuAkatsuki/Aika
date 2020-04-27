@@ -67,7 +67,7 @@ async def on_message(message: discord.Message) -> None:
     filtered: bool = glob.config['filters'] and filter_message(message.content.lower())
     print( # `{filtered?red:bot?magenga:cyan}[20:44:19 #channel] {dark_gray}cmyui#2147{reset}: message`
         f'\x1b[{91 if filtered else (95 if message.author.bot else 96)}m',
-        f'[{datetime.now():%H:%M:%S} #{message.channel}]',
+        f'[{datetime.now():%H:%M:%S} {message.channel.guild.name} #{message.channel}]',
         f'\x1b[38;5;244m {message.author}',
         f'\x1b[0m: {message.clean_content}',
         sep = '')
@@ -86,7 +86,7 @@ async def on_message_edit(before: discord.Message, after: discord.Message) -> No
     filtered: bool = glob.config['filters'] and filter_message(after.content.lower())
     print( # `{filtered?red:yellow}[20:44:19 #channel] {dark_gray}cmyui#2147{reset}: message`
         f'\x1b[{91 if filtered else 93}m',
-        f'[{datetime.now():%H:%M:%S} #{after.channel}]',
+        f'[{datetime.now():%H:%M:%S} {after.channel.guild.name} #{after.channel}]',
         f'\x1b[38;5;244m {after.author}',
         f'\x1b[0m: {after.clean_content}',
         sep = '')
@@ -125,6 +125,10 @@ async def on_command_error(ctx: commands.Context, error: discord.ext.commands.er
             embed.add_field(name = f'arg{idx}', value = arg)
 
         await ctx.send(embed = embed)
+    elif isinstance(error, discord.ext.commands.BotMissingPermissions):
+        await ctx.send('I have insufficient privileges in the server to perform such a command.')
+    elif isinstance(error, discord.ext.commands.MissingPermissions):
+        await ctx.send('You have insufficient privileges to perform such a command.')
     elif isinstance(error, discord.ext.commands.NotOwner):
         pass
     else:

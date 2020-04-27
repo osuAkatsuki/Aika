@@ -1,3 +1,4 @@
+from typing import List, Dict
 import discord
 from discord.ext import commands
 from time import time
@@ -10,12 +11,22 @@ class Utility(commands.Cog):
 
     @staticmethod
     async def format_period(seconds: int) -> str:
-        days = int(seconds / 60 / 60 / 24)
+        r: List[str] = []
+
+        if (days := int(seconds / 60 / 60 / 24)):
+            r.append(f'{days}d')
         seconds %= (60 * 60 * 24)
-        hours = int(seconds / 60 / 60)
+
+        if (hours := int(seconds / 60 / 60)):
+            r.append(f'{hours}h')
         seconds %= (60 * 60)
-        minutes = int(seconds / 60)
-        return f'{days}d {hours}h {minutes}m {int(seconds % 60)}s'
+
+        if (minutes := int(seconds / 60)):
+            r.append(f'{minutes}m')
+        seconds %= 60
+
+        r.append(f'{seconds}s')
+        return ' '.join(r)
 
     @commands.command(description = 'Returns the current uptime of Aika.')
     @commands.cooldown(
@@ -72,7 +83,6 @@ class Utility(commands.Cog):
         name2perc_map = { glob.bot.get_user(k).name: (v / total) * 100 for k, v in id2count_map.items() }
 
         longest_name: int = max(map(len, name2perc_map))
-
 
         # TODO: Words %
 
