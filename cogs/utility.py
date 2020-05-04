@@ -34,7 +34,8 @@ class Utility(commands.Cog):
         glob.config['cooldowns']['default_user_per'],
         commands.BucketType.user)
     async def uptime(self, ctx: commands.Context) -> None:
-        await ctx.send(f"I've been running for **{await self.format_period(time() - glob.start_time)}**.")
+        uptime = await self.format_period(time() - glob.start_time)
+        await ctx.send(f"I've been running for **{uptime}**.")
 
     @commands.command(description = "Aika's power button.")
     @commands.is_owner()
@@ -48,8 +49,8 @@ class Utility(commands.Cog):
     @commands.is_owner()
     async def lock(self, ctx: commands.Context) -> None:
         if ctx.message.content != '!lock':
-            await ctx.send('The `!lock` command takes no parameters, and is simply a toggle.')
-            return
+            return await ctx.send(
+                'The `!lock` command takes no parameters, and is simply a toggle.')
 
         glob.locked = not glob.locked
 
@@ -62,42 +63,44 @@ class Utility(commands.Cog):
 
     # TODO: prune_user() or combine logic for a specific user wipe into prune()
     @commands.command(description = 'Remove messages in bulk.')
+    @commands.guild_only()
     @commands.has_permissions(manage_messages = True)
     async def prune(self, ctx: commands.Context) -> None:
         if len(split := ctx.message.content.split()) != 2 or not split[1].isdigit() or not (split := int(split[1])):
-            await ctx.send('Invalid syntax.\n> Correct syntax: `!prune <count>`.')
-            return
+            return await ctx.send(
+                'Invalid syntax.\n> Correct syntax: `!prune <count>`.')
 
         await ctx.message.delete() # we don't want this in our removed list for stats
         removed: List[discord.Message] = await ctx.channel.purge(limit = split)
 
-        # Users %
-        id2count_map: Dict[int, int] = {}
+        user_map: Dict[int, int] = {} # userid : message count of messages removed
         for u in (users := m.author for m in removed):
-            if u.id not in id2count_map.keys():
-                id2count_map[u.id] = 0
-            id2count_map[u.id] += 1
+            if u.id not in user_map.keys():
+                user_map[u.id] = 0
+            user_map[u.id] += 1
 
-        total: int = sum(id2count_map.values())
-        # now change to names since it's safe:tm:
-        name2perc_map = { glob.bot.get_user(k).name: (v / total) * 100 for k, v in id2count_map.items() }
-
-        longest_name: int = max(map(len, name2perc_map))
+        total: int = sum(user_map.values())
+        percent_map = { # username : % of messages removed
+            glob.bot.get_user(k).name: (v / total) * 100 for k, v in user_map.items()
+        }
+        longest_name: int = max(map(len, percent_map))
 
         # TODO: Words %
 
-        embed = discord.Embed(
+        e = discord.Embed(
             title = 'Successful prune.',
             description = f'Removed {split} message{"s" if split > 1 else ""}.',
             color = glob.config['embed_color']
         )
-        embed.set_thumbnail(url = glob.config['thumbnails']['global'])
-        embed.set_footer(text = f'Statistics only for data nerds.\nBeing active is no crime.\nAika v{glob.version}')
-        embed.add_field(
+        e.set_thumbnail(url = glob.config['thumbnails']['global'])
+        e.set_footer(text = f'Statistics only for data nerds.\n' \
+                             'Being active is no crime.\n' \
+                            f'Aika v{glob.version}')
+        e.add_field(
             name = 'User frequency',
-            value = '```' + '\n'.join(f'{k:<{longest_name}}{v:>8.2f}%' for k, v in name2perc_map.items()) + '```'
+            value = '```' + '\n'.join(f'{k:<{longest_name}}{v:>8.2f}%' for k, v in percent_map.items()) + '```'
         )
-        await ctx.send(embed = embed)
+        await ctx.send(embed = e)
 
 def setup(bot: commands.Bot):
     bot.add_cog(Utility(bot))

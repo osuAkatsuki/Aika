@@ -20,7 +20,7 @@
     "mysql": {
         "database": "",
         "host": "",
-        "passwd": "",
+        "password": "",
         "user": ""
     },
     "server_build": false,

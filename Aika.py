@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from typing import Optional
+from typing import Optional, Union
 import discord, asyncio
 from discord.ext import commands
 from os import path, SEEK_END
 from json import loads, dump
 from datetime import datetime
 from random import randint
+import traceback
 
 from db import dbConnector
 from mysql.connector import errorcode, Error as SQLError
@@ -33,12 +34,11 @@ with open(f'{path.dirname(path.realpath(__file__))}/config.json', 'r+') as f:
         raise Exception('config.json is from a newer version of Aika?')
 
 # Attempt to connect to SQL
-try: glob.db = dbConnector.SQLPool(config = {
-    'user':     glob.config['mysql']['user'],
-    'password': glob.config['mysql']['passwd'],
-    'host':     glob.config['mysql']['host'],
-    'database': glob.config['mysql']['database']
-},  pool_size = 4)
+try:
+    glob.db = dbConnector.SQLPool(
+        config = glob.config['mysql'],
+        pool_size = 4
+    )
 except SQLError as err:
     if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
         raise Exception('SQLError: Something is wrong with your username or password')
@@ -49,28 +49,31 @@ else: print('Successfully connected to SQL')
 
 glob.bot = commands.Bot(
     command_prefix = commands.when_mentioned_or(glob.config['command_prefix']),
-    owner_id = glob.config['discord_owner_userid'], help_command = None)
-for i in glob.config['cogs']: glob.bot.load_extension(f'cogs.{i}')
+    owner_id = glob.config['discord_owner_userid']
+)
+
+for i in glob.config['cogs']:
+    glob.bot.load_extension(f'cogs.{i}')
 
 def filter_message(msg: str) -> bool:
     return any(f in msg for f in glob.config['substring_filters']) \
         or any(s in glob.config['filters'] for s in msg.split())
 
+async def print_console(msg: discord.Message, col: int) -> None:
+    print(f'\x1b[{col}m[{datetime.now():%H:%M:%S} {msg.channel.guild.name} #{msg.channel}]',
+          f'\x1b[38;5;244m {msg.author}',
+          f'\x1b[0m: {msg.clean_content}',
+          sep = '')
 
 """ Event handlers. """
 
 @glob.bot.event
 async def on_message(message: discord.Message) -> None:
     await glob.bot.wait_until_ready()
-    if not message.content: return
+    if not message.content or message.author.bot: return
 
-    filtered: bool = glob.config['filters'] and filter_message(message.content.lower())
-    print( # `{filtered?red:bot?magenga:cyan}[20:44:19 #channel] {dark_gray}cmyui#2147{reset}: message`
-        f'\x1b[{91 if filtered else (95 if message.author.bot else 96)}m',
-        f'[{datetime.now():%H:%M:%S} {message.channel.guild.name} #{message.channel}]',
-        f'\x1b[38;5;244m {message.author}',
-        f'\x1b[0m: {message.clean_content}',
-        sep = '')
+    filtered = glob.config['filters'] and filter_message(message.content.lower())
+    await print_console(message, 91 if filtered else (95 if message.author.bot else 96))
 
     if filtered:
         await message.delete()
@@ -81,21 +84,20 @@ async def on_message(message: discord.Message) -> None:
 @glob.bot.event
 async def on_message_edit(before: discord.Message, after: discord.Message) -> None:
     await glob.bot.wait_until_ready()
-    if not after.content: return
+    if not after.content or after.author.bot: return
 
     filtered: bool = glob.config['filters'] and filter_message(after.content.lower())
-    print( # `{filtered?red:yellow}[20:44:19 #channel] {dark_gray}cmyui#2147{reset}: message`
-        f'\x1b[{91 if filtered else 93}m',
-        f'[{datetime.now():%H:%M:%S} {after.channel.guild.name} #{after.channel}]',
-        f'\x1b[38;5;244m {after.author}',
-        f'\x1b[0m: {after.clean_content}',
-        sep = '')
+    await print_console(after, 91 if filtered else 93)
 
     if filtered:
         await after.delete()
         return
 
     await glob.bot.process_commands(after)
+
+@glob.bot.event
+async def on_member_ban(guild, user: Union[discord.Member, discord.User]) -> None:
+    print (f'\x1b[32m{user.name} was banned from {guild.name}.\x1b[0m')
 
 @glob.bot.event
 async def on_ready() -> None:
@@ -108,31 +110,40 @@ async def on_ready() -> None:
         )
 
 @glob.bot.event
-async def on_command_error(ctx: commands.Context, error: discord.ext.commands.errors.CommandError) -> None:
-    if isinstance(error, discord.ext.commands.CommandOnCooldown):
-        await ctx.send(f'{ctx.author.mention} that command is still on cooldown for another **{error.retry_after:.2f}** seconds.')
-    elif isinstance(error, discord.ext.commands.CommandNotFound):
-        await ctx.send(f"{ctx.author.mention} I couldn't find a command by that name..")
-    elif isinstance(error, discord.ext.commands.CommandInvokeError):
-        embed = discord.Embed(
-            title = 'Exception traceback',
-            description = 'Error encountered while invoking command.',
-            color = glob.config['embed_color']
-        )
-        embed.set_footer(text = f'Aika v{glob.version}')
-        embed.add_field(name = 'Type', value = type(error.original))
-        for idx, arg in enumerate(error.original.args):
-            embed.add_field(name = f'arg{idx}', value = arg)
+async def on_command_error(ctx: commands.Context, error: commands.errors.CommandError) -> None:
+    if hasattr(ctx.command, 'on_error'):
+        return
 
-        await ctx.send(embed = embed)
-    elif isinstance(error, discord.ext.commands.BotMissingPermissions):
-        await ctx.send('I have insufficient privileges in the server to perform such a command.')
-    elif isinstance(error, discord.ext.commands.MissingPermissions):
-        await ctx.send('You have insufficient privileges to perform such a command.')
-    elif isinstance(error, discord.ext.commands.NotOwner):
-        pass
-    else:
-        print(f'\x1b[31mUnhandled error of type {type(error)}\x1b[0m')
+    ignored = (commands.CommandNotFound, commands.UserInputError, commands.NotOwner)
+    error = getattr(error, 'original', error)
+
+    if isinstance(error, ignored):
+        return
+    elif isinstance(error, commands.DisabledCommand):
+        return await ctx.send(f'{ctx.command} is currently disabled.')
+    elif isinstance(error, commands.NoPrivateMessage):
+        try: return await ctx.author.send(f'{ctx.command} can only be used in guilds.')
+        except: pass
+    elif isinstance(error, commands.CommandOnCooldown):
+        return await ctx.send(f'{ctx.author.mention} that command is still on cooldown for another **{error.retry_after:.2f}** seconds.')
+    elif isinstance(error, commands.BotMissingPermissions):
+        return await ctx.send('I have insufficient privileges in the server to perform such a command.')
+    elif isinstance(error, commands.MissingPermissions):
+        return await ctx.send('You have insufficient privileges to perform such a command.')
+    #elif isinstance(error, commands.CommandInvokeError):
+    #    e = discord.Embed(
+    #        title = 'Exception traceback',
+    #        description = 'Error encountered while invoking command.',
+    #        color = glob.config['embed_color']
+    #    )
+    #    e.set_footer(text = f'Aika v{glob.version}')
+    #    e.add_field(name = 'Type', value = type(error))
+    #    for idx, arg in enumerate(error.args):
+    #        e.add_field(name = f'arg{idx}', value = arg)
+    #    await ctx.send(embed = e)
+
+    print(f'Ignoring exception in command {ctx.command}')
+    traceback.print_exception(type(error), error, error.__traceback__)
 
 async def _background_loop():
     while not glob.bot.is_ready():
