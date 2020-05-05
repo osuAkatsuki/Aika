@@ -19,7 +19,6 @@ Since then, I have left Akatsuki, and have been focusing much more on improving 
 
 Things that are already bothering me
 ------------------------------------
-1. The async background loop feels sloppy but I'm very (days) new to asynchronous programming. maybe it's fine?
-2. While I first started inlining the color codes as a method of memorizing them (which was successful btw, already), I actually haven't managed to find a better method.. Every time I write something to replace it, I just end up scrapping it after realizing it makes it worse or equal.
-3. Config embed_color can't be hex unless we used [json5](https://github.com/dpranke/pyjson5) but its hyper-slow (~200x slower than pyjson) and it just looks retarded as a decimal.
-4. There are a few little rough spots in the code that just feel wrong - I just feel like there are better ways to solve the puzzle, I just can't see it I guess.
+1. While I first started inlining the color codes as a method of memorizing them (which was successful btw, already), I actually haven't managed to find a better method.. Every time I write something to replace it, I just end up scrapping it after realizing it makes it worse or equal.
+2. There are a few little rough spots in the code that just feel wrong - I just feel like there are better ways to solve the puzzle, I just can't see it I guess.
+3. Not really bothering me but the leveling system is very obviously garbage and non-permanent; needs to be fixed soon.
