@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from math import log, pow
-from typing import Union, Optional
+from typing import Optional
 from time import time
 from random import randrange
 
@@ -78,7 +78,7 @@ class User(commands.Cog):
                 'Invalid syntax - only one user can be fetched at a time.\n' \
                 '**Correct syntax**: `!user (optional: @user)`')
 
-        e = discord.Embed(title = 'User stats', color = self.bot.config.embed_color)
+        e = discord.Embed(title = 'User stats', color = self.bot.config.embed_colour)
 
         target = ctx.message.mentions[0] if ctx.message.mentions else ctx.author
 
@@ -90,6 +90,7 @@ class User(commands.Cog):
         e.add_field(name = 'Level', value = level)
         e.add_field(name = 'Experience', value = xp)
         e.add_field(name = 'Account creation', value = created_date)
+        #e.add_field(name = 'Roles', value = ', '.join(str(i) for i in target.roles if i.position))
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e) # TODO: cmyui.codes/u/ profiles?
 
@@ -113,7 +114,7 @@ class User(commands.Cog):
 
         e = discord.Embed(
             title = 'XP/Level Leaderboards',
-            color = self.bot.config.embed_color)
+            colour = self.bot.config.embed_colour)
 
         for i in res:
             user: Optional[discord.User] = self.bot.get_user(i['id'])

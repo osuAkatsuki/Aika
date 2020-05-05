@@ -1,18 +1,43 @@
 # -*- coding: utf-8 -*-
 
-from typing import Optional, Union
+from typing import Union
 import discord, asyncio
 from discord.ext import commands, tasks
-from os import path, SEEK_END
+from os import chdir, path
 from time import time
 from datetime import datetime
-from random import randint
 import traceback
+from shutil import copyfile
+from requests import get # DONT USE IN ASYNC FUNCTIONS!
+
+from enum import IntEnum
 
 from db import dbConnector
 from mysql.connector import errorcode, Error as SQLError
 
-import config
+class Ansi(IntEnum):
+    BLACK = 30
+    RED = 31
+    GREEN = 32
+    YELLOW = 33
+    BLUE = 34
+    MAGENTA = 35
+    CYAN = 36
+    WHITE = 37
+
+    GRAY = 90
+    LIGHT_RED = 91
+    LIGHT_GREEN = 92
+    LIGHT_YELLOW = 93
+    LIGHT_BLUE = 94
+    LIGHT_MAGENTA = 95
+    LIGHT_CYAN = 96
+    LIGHT_WHITE = 97
+
+    RESET = 0
+
+    def __str__(self):
+        return f'\x1b[{self.value}m'
 
 class Aika(commands.Bot):
     def __init__(self):
@@ -32,6 +57,10 @@ class Aika(commands.Bot):
                 print(f'Failed to load extension {e}.')
                 traceback.print_exc()
 
+    #########
+    # MySQL #
+    #########
+
     def connect_db(self) -> None:
         try:
             self.db = dbConnector.SQLPool(
@@ -47,12 +76,20 @@ class Aika(commands.Bot):
         else:
             print('Successfully connected to SQL')
 
+    ##########
+    # Events #
+    ##########
+
     async def on_message(self, message: discord.Message) -> None:
         await self.wait_until_ready()
-        if not message.content or message.author.bot: return
+        if not message.content or message.author.bot:
+            return
 
-        filtered = self.config.filters and filter_message(message.content.lower())
-        await self.print_console(message, 91 if filtered else (95 if message.author.bot else 96))
+        filtered = self.config.filters and await self.filter_message(message.content.lower())
+
+        if self.config.verbose_console:
+            colour = Ansi.LIGHT_RED if filtered else (Ansi.LIGHT_MAGENTA if message.author.bot else Ansi.LIGHT_CYAN)
+            await self.print_console(message, colour)
 
         if filtered:
             return await message.delete()
@@ -61,10 +98,14 @@ class Aika(commands.Bot):
 
     async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
         await self.wait_until_ready()
-        if not after.content or after.author.bot: return
+        if not after.content or after.author.bot:
+            return
 
-        filtered: bool = self.config.filters and filter_message(after.content.lower())
-        await self.print_console(after, 91 if filtered else 93)
+        filtered = self.config.filters and await self.filter_message(after.content.lower())
+
+        if self.config.verbose_console:
+            colour = Ansi.LIGHT_RED if filtered else Ansi.LIGHT_YELLOW
+            await self.print_console(after, colour)
 
         if filtered:
             return await after.delete()
@@ -72,14 +113,14 @@ class Aika(commands.Bot):
         await self.process_commands(after)
 
     async def on_member_ban(self, guild: discord.Guild, user: Union[discord.Member, discord.User]) -> None:
-        print (f'\x1b[32m{user.name} was banned from {guild.name}.\x1b[0m')
+        print (f'{Ansi.GREEN!s}{user.name} was banned from {guild.name}.{Ansi.RESET!s}')
 
     async def on_ready(self) -> None:
         # TODO: maybe use datetime module rather than this w/ formatting?
         if not hasattr(self, 'uptime'):
             self.uptime = time()
 
-        print(f'\x1b[32mReady\x1b[0m: {self.user} ({self.user.id})')
+        print(f'{Ansi.GREEN!s}Ready{Ansi.RESET!s}: {self.user} ({self.user.id})')
 
     async def on_command_error(self, ctx: commands.Context, error: commands.errors.CommandError) -> None:
         if hasattr(ctx.command, 'on_error'):
@@ -117,17 +158,21 @@ class Aika(commands.Bot):
         print(f'Ignoring exception in command {ctx.command}')
         traceback.print_exception(type(error), error, error.__traceback__)
 
-    def filter_message(self, msg: str) -> bool: # TODO: aSYNC
+    #########
+    # Utils #
+    #########
+
+    async def filter_message(self, msg: str) -> bool: # TODO: aSYNC
         return any(f in msg for f in self.config['substring_filters']) \
             or any(s in self.config['filters'] for s in msg.split())
 
-    async def print_console(self, msg: discord.Message, col: int) -> None:
-        print(f'\x1b[{col}m[{datetime.now():%H:%M:%S} {msg.channel.guild.name} #{msg.channel}]',
-            f'\x1b[38;5;244m {msg.author}',
-            f'\x1b[0m: {msg.clean_content}',
+    async def print_console(self, msg: discord.Message, col: Ansi) -> None:
+        print(f'{col!s}[{datetime.now():%H:%M:%S} {msg.channel.guild.name} #{msg.channel}]',
+            f'{Ansi.GRAY!s} {msg.author}',
+            f'{Ansi.RESET!s}: {msg.clean_content}',
             sep = '')
 
-    @tasks.loop(seconds = config.bg_loop_interval)
+    @tasks.loop(seconds = 10)
     async def bg_loop(self):
         await self.wait_until_ready()
 
@@ -144,13 +189,36 @@ class Aika(commands.Bot):
             super().run(self.config.discord_token, reconnect=True)
         finally:
             self.bg_loop.cancel()
-            print(f'\x1b[37mSuccessfully logged out of {self.user.name}\x1b[0m')
+
+    async def close(self):
+        await super().close()
+        await self.session.close()
 
     @property
     def config(self):
         return __import__('config')
 
+def main() -> None:
+    chdir(path.dirname(path.realpath(__file__)))
+
+    # Ensure config
+    if not path.exists('config.py'):
+        if not path.exists('config.sample.py'):
+            if not (r := get('https://raw.githubusercontent.com/cmyui/Aika-3/master/config.sample.py')):
+                print(f'{Ansi.LIGHT_RED!s}Failed to fetch default config.{Ansi.RESET!s}')
+                return
+
+            with open('config.sample.py', 'w+') as f:
+                f.write(r.text)
+
+        copyfile('config.sample.py', 'config.py')
+
+        print(f'{Ansi.CYAN!s}A default config has been generated.{Ansi.RESET!s}')
+        return
+
+    # Run Aika
+    aika = Aika()
+    aika.run()
+
 if __name__ == '__main__':
-    # TODO: config validation (& default generation?)
-    bot = Aika()
-    bot.run()
+    main()

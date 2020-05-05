@@ -84,7 +84,7 @@ class Utility(commands.Cog):
         e = discord.Embed(
             title = 'Successful prune.',
             description = f'Removed {count} message{"s" if count > 1 else ""}.',
-            color = self.bot.config.embed_color
+            colour = self.bot.config.embed_colour
         )
         e.set_thumbnail(url = self.bot.config.thumbnails['global'])
         e.set_footer(text = f'Statistics only for data nerds.\n' \

@@ -1,7 +1,8 @@
-from typing import Optional, Tuple, Dict, Union
+from typing import Tuple, Dict, Union
 import discord
 from discord.ext import commands
-from time import time
+
+from Aika import Ansi
 
 class Info(commands.Cog):
     def __init__(self, bot):
@@ -10,11 +11,11 @@ class Info(commands.Cog):
 
     def load_faq(self) -> Tuple[Dict[str, Union[int, str]]]:
         if not (res := self.bot.db.fetchall('SELECT * FROM aika_faq ORDER BY id ASC')):
-            raise Exception('\x1b[31mFAQ cog enabled, but FAQ empty in database!\x1b[0m')
+            raise Exception('FAQ cog enabled, but FAQ empty in database!')
         return tuple(res)
 
     def add_faq(self, topic: str, title: str, content: str) -> None:
-        print(f'\x1b[32mAdding new FAQ topic - {topic}\x1b[0m')
+        print(f'{Ansi.GREEN!s}Adding new FAQ topic - {topic}{Ansi.RESET!s}')
         self.bot.db.execute('INSERT INTO aika_faq (id, topic, title, content) VALUES (NULL, %s, %s, %s)', [topic, title, content])
         self.faq = self.load_faq() # suboptimal but so rare who cares?
 
@@ -41,7 +42,7 @@ class Info(commands.Cog):
 
             e = discord.Embed(
                 title = 'Available topics',
-                color = self.bot.config.embed_color,
+                colour = self.bot.config.embed_colour,
                 description =
                     f"You'll need to provide an id or topic (accepts multiple delimited by space; max 4).\n"
                     f'**Syntax**: `!{ctx.invoked_with} <id/topic>`\n'
@@ -70,7 +71,7 @@ class Info(commands.Cog):
                 e = discord.Embed(
                     title = select['title'],
                     description = select['content'].format(**self.bot.config.faq_replacements),
-                    color = self.bot.config.embed_color
+                    colour = self.bot.config.embed_colour
                 )
                 e.set_footer(text = f'Aika v{self.bot.config.version}')
                 e.set_thumbnail(url = self.bot.config.thumbnails['faq'])
@@ -101,8 +102,9 @@ class Info(commands.Cog):
         elif (e := len(split[2]) - 0x400) > 0:
             return await ctx.send(
                 f'Your content is {e} characters too long.')
-        else:
-            self.add_faq(*split)
+
+        self.add_faq(*split)
+        await ctx.send('New FAQ topic added!')
 
 def setup(bot: commands.Bot):
     bot.add_cog(Info(bot))
