@@ -55,13 +55,15 @@ class User(commands.Cog):
             [count, userID]
         )
 
-    async def increment_xp(self, userID: int) -> None:
+    async def increment_xp(self, userID: int, override = False) -> None:
         if not await self.user_exists(userID):
             await self.create_user(userID)
 
-        if await self.can_collect_xp(userID):
-            await self.update_cooldown(userID)
+        if override or await self.can_collect_xp(userID):
             await self.add_xp(userID, randrange(**self.bot.config.xp['range']))
+
+            if not override:
+                await self.update_cooldown(userID)
 
     async def get_level(self, userID: int) -> float: # level is not stored in db, but constructed every time..
         return log(xp) / log(1.5) if (
@@ -202,7 +204,7 @@ class User(commands.Cog):
             f'({await self.get_xp(ctx.author.id):.2f} xp).')
 
     # Voice Chat XP
-    @tasks.loop(seconds = 60)
+    @tasks.loop(minutes = 2.5)
     async def voice_xp(self) -> None:
         await self.bot.wait_until_ready()
 
@@ -211,7 +213,7 @@ class User(commands.Cog):
         for channel in filter(check, self.bot.get_all_channels()):
             for member in channel.members:
                 if await self.can_collect_xp(member.id):
-                    await self.increment_xp(member.id)
+                    await self.increment_xp(member.id, override = True)
 
 def setup(bot: commands.Bot):
     bot.add_cog(User(bot))
