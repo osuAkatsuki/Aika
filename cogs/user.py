@@ -73,7 +73,9 @@ class User(commands.Cog):
         if not await self.user_exists(ctx.author.id):
             await self.create_user(ctx.author.id)
 
-        if len(set(ctx.message.mentions).remove(self.bot.user)) > 1:
+        mentions = [i for i in ctx.message.mentions if i != self.bot.user]
+
+        if len(mentions) > 1:
             return await ctx.send(
                 'Invalid syntax - only one user can be fetched at a time.\n' \
                 '**Correct syntax**: `!user (optional: @user)`')
@@ -81,7 +83,7 @@ class User(commands.Cog):
         e = discord.Embed(title = 'User stats',
                           color = self.bot.config.embed_colour)
 
-        target = ctx.message.mentions[0] if ctx.message.mentions else ctx.author
+        target = mentions[0] if mentions else ctx.author
 
         level = round(await self.get_level(target.id), 2)
         xp = round(await self.get_xp(target.id), 2)
