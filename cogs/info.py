@@ -15,7 +15,7 @@ class Info(commands.Cog):
         return tuple(res)
 
     def add_faq(self, topic: str, title: str, content: str) -> None:
-        print(f'{Ansi.GREEN!s}Adding new FAQ topic - {topic}{Ansi.RESET!s}')
+        print(f'{Ansi.GREEN!r}Adding new FAQ topic - {topic}{Ansi.RESET!r}')
         self.bot.db.execute('INSERT INTO aika_faq (id, topic, title, content) VALUES (NULL, %s, %s, %s)', [topic, title, content])
         self.faq = self.load_faq() # suboptimal but so rare who cares?
 

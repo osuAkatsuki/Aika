@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Union
+from typing import Union, Final
 import discord, asyncio
 from discord.ext import commands, tasks
 from os import chdir, path
@@ -16,36 +16,37 @@ from db import dbConnector
 from mysql.connector import errorcode, Error as SQLError
 
 class Ansi(IntEnum):
-    BLACK = 30
-    RED = 31
-    GREEN = 32
-    YELLOW = 33
-    BLUE = 34
-    MAGENTA = 35
-    CYAN = 36
-    WHITE = 37
+    # Default colours
+    BLACK: Final[int] = 30
+    RED: Final[int] = 31
+    GREEN: Final[int] = 32
+    YELLOW: Final[int] = 33
+    BLUE: Final[int] = 34
+    MAGENTA: Final[int] = 35
+    CYAN: Final[int] = 36
+    WHITE: Final[int] = 37
 
-    GRAY = 90
-    LIGHT_RED = 91
-    LIGHT_GREEN = 92
-    LIGHT_YELLOW = 93
-    LIGHT_BLUE = 94
-    LIGHT_MAGENTA = 95
-    LIGHT_CYAN = 96
-    LIGHT_WHITE = 97
+    # Light colours
+    GRAY: Final[int] = 90
+    LIGHT_RED: Final[int] = 91
+    LIGHT_GREEN: Final[int] = 92
+    LIGHT_YELLOW: Final[int] = 93
+    LIGHT_BLUE: Final[int] = 94
+    LIGHT_MAGENTA: Final[int] = 95
+    LIGHT_CYAN: Final[int] = 96
+    LIGHT_WHITE: Final[int] = 97
 
-    RESET = 0
+    RESET: Final[int] = 0
 
-    def __str__(self):
+    def __repr__(self):
         return f'\x1b[{self.value}m'
 
 class Aika(commands.Bot):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             command_prefix = commands.when_mentioned_or(self.config.command_prefix),
             owner_id = self.config.discord_owner)
 
-        self.db = None
         self.connect_db()
 
         self.locked = False # lock aika's commands to only bot owner
@@ -62,10 +63,12 @@ class Aika(commands.Bot):
     #########
 
     def connect_db(self) -> None:
+        if hasattr(self, 'db'):
+            return
+
         try:
-            self.db = dbConnector.SQLPool(
-                config = self.config.mysql,
-                pool_size = 4)
+            self.db = dbConnector.SQLPool(config = self.config.mysql,
+                                          pool_size = 4)
         except SQLError as err:
             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
                 raise Exception('SQLError: Something is wrong with your username or password')
@@ -113,14 +116,14 @@ class Aika(commands.Bot):
         await self.process_commands(after)
 
     async def on_member_ban(self, guild: discord.Guild, user: Union[discord.Member, discord.User]) -> None:
-        print (f'{Ansi.GREEN!s}{user.name} was banned from {guild.name}.{Ansi.RESET!s}')
+        print (f'{Ansi.GREEN!r}{user.name} was banned from {guild.name}.{Ansi.RESET!r}')
 
     async def on_ready(self) -> None:
         # TODO: maybe use datetime module rather than this w/ formatting?
         if not hasattr(self, 'uptime'):
             self.uptime = time()
 
-        print(f'{Ansi.GREEN!s}Ready{Ansi.RESET!s}: {self.user} ({self.user.id})')
+        print(f'{Ansi.GREEN!r}Ready{Ansi.RESET!r}: {self.user} ({self.user.id})')
 
     async def on_command_error(self, ctx: commands.Context, error: commands.errors.CommandError) -> None:
         if hasattr(ctx.command, 'on_error'):
@@ -162,14 +165,14 @@ class Aika(commands.Bot):
     # Utils #
     #########
 
-    async def filter_message(self, msg: str) -> bool: # TODO: aSYNC
+    async def filter_message(self, msg: str) -> bool:
         return any(f in msg for f in self.config['substring_filters']) \
             or any(s in self.config['filters'] for s in msg.split())
 
     async def print_console(self, msg: discord.Message, col: Ansi) -> None:
-        print(f'{col!s}[{datetime.now():%H:%M:%S} {msg.channel.guild.name} #{msg.channel}]',
-            f'{Ansi.GRAY!s} {msg.author}',
-            f'{Ansi.RESET!s}: {msg.clean_content}',
+        print(f'{col!r}[{datetime.now():%H:%M:%S} {msg.channel.guild.name} #{msg.channel}]',
+            f'{Ansi.GRAY!r} {msg.author}',
+            f'{Ansi.RESET!r}: {msg.clean_content}',
             sep = '')
 
     @tasks.loop(seconds = 10)
@@ -205,7 +208,7 @@ def main() -> None:
     if not path.exists('config.py'):
         if not path.exists('config.sample.py'):
             if not (r := get('https://raw.githubusercontent.com/cmyui/Aika-3/master/config.sample.py')):
-                print(f'{Ansi.LIGHT_RED!s}Failed to fetch default config.{Ansi.RESET!s}')
+                print(f'{Ansi.LIGHT_RED!r}Failed to fetch default config.{Ansi.RESET!r}')
                 return
 
             with open('config.sample.py', 'w+') as f:
@@ -213,7 +216,7 @@ def main() -> None:
 
         copyfile('config.sample.py', 'config.py')
 
-        print(f'{Ansi.CYAN!s}A default config has been generated.{Ansi.RESET!s}')
+        print(f'{Ansi.CYAN!r}A default config has been generated.{Ansi.RESET!r}')
         return
 
     # Run Aika
