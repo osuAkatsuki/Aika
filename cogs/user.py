@@ -155,12 +155,12 @@ class User(commands.Cog):
 
         leaderboard = Leaderboard([{
             'title': user.name if (
-                user := self.bot.get_user(i['id'])
+                user := self.bot.get_user(row['id'])
                 ) else '<left guild>',
-            'value': i['deleted_messages']
-        } for i in res])
+            'value': row['deleted_messages']
+        } for row in res])
 
-        e = embed = discord.Embed(
+        e = discord.Embed(
             colour = self.bot.config.embed_colour,
             title = 'Deleted message leaderboards.',
             description = repr(leaderboard))
