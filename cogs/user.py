@@ -73,9 +73,8 @@ class User(commands.Cog):
         if not await self.user_exists(ctx.author.id):
             await self.create_user(ctx.author.id)
 
-        mentions = [i for i in ctx.message.mentions if i != self.bot.user]
-
-        if len(mentions) > 1:
+        not_aika = lambda u: u != self.bot.user
+        if len(mentions := list(filter(not_aika, ctx.message.mentions))) > 1:
             return await ctx.send(
                 'Invalid syntax - only one user can be fetched at a time.\n' \
                 '**Correct syntax**: `!user (optional: @user)`')
