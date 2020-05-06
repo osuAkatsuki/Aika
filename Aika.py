@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Union, Final
+from typing import Union, Final, Any, List, Dict
 import discord, asyncio
 from discord.ext import commands, tasks
 from os import chdir, path
@@ -14,6 +14,23 @@ from enum import IntEnum
 
 from db import dbConnector
 from mysql.connector import errorcode, Error as SQLError
+
+def truncate(string: str, length: int) -> str:
+    return string[:length] + (string[length:] and '..')
+
+class Leaderboard:
+    def __init__(self, listings: List[Dict[str, Union[int, str]]]) -> None:
+        self.listings = listings
+
+    def __repr__(self) -> str:
+        longest_id: int = len(str(len(self.listings)))
+        longest_title: int = min(14, max(
+            len(i['title']) for i in self.listings))
+
+        return '```md\n' + '\n'.join(
+            f"{str(idx + 1) + '.':0>{longest_id + 1}} {truncate(i['title'], 12):^{longest_title}} - {i['value']}" \
+                for idx, i in enumerate(self.listings)
+        ) + '```'
 
 class Ansi(IntEnum):
     # Default colours
@@ -38,13 +55,14 @@ class Ansi(IntEnum):
 
     RESET: Final[int] = 0
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'\x1b[{self.value}m'
 
 class Aika(commands.Bot):
     def __init__(self) -> None:
         super().__init__(
-            command_prefix = commands.when_mentioned_or(self.config.command_prefix),
+            command_prefix = commands.when_mentioned_or(
+                             self.config.command_prefix),
             owner_id = self.config.discord_owner)
 
         self.connect_db()
@@ -67,11 +85,12 @@ class Aika(commands.Bot):
             return
 
         try:
-            self.db = dbConnector.SQLPool(config = self.config.mysql,
-                                          pool_size = 4)
+            self.db = dbConnector.SQLPool(
+                config = self.config.mysql,
+                pool_size = 4)
         except SQLError as err:
             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                raise Exception('SQLError: Something is wrong with your username or password')
+                raise Exception('SQLError: Incorrect username/password.')
             elif err.errno == errorcode.ER_BAD_DB_ERROR:
                 raise Exception('SQLError: Database does not exist')
             else:
@@ -88,10 +107,14 @@ class Aika(commands.Bot):
         if not message.content or message.author.bot:
             return
 
-        filtered = self.config.filters and await self.filter_message(message.content.lower())
+        filtered = self.config.filters \
+            and await self.filter_message(message.content.lower())
 
         if self.config.verbose_console:
-            colour = Ansi.LIGHT_RED if filtered else (Ansi.LIGHT_MAGENTA if message.author.bot else Ansi.LIGHT_CYAN)
+            colour = Ansi.LIGHT_RED if filtered else \
+                     Ansi.LIGHT_MAGENTA if message.author.bot else \
+                     Ansi.LIGHT_CYAN
+
             await self.print_console(message, colour)
 
         if filtered:
@@ -99,12 +122,14 @@ class Aika(commands.Bot):
 
         await self.process_commands(message)
 
-    async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
+    async def on_message_edit(self, before: discord.Message,
+                              after: discord.Message) -> None:
         await self.wait_until_ready()
         if not after.content or after.author.bot:
             return
 
-        filtered = self.config.filters and await self.filter_message(after.content.lower())
+        filtered = self.config.filters \
+            and await self.filter_message(after.content.lower())
 
         if self.config.verbose_console:
             colour = Ansi.LIGHT_RED if filtered else Ansi.LIGHT_YELLOW
@@ -115,8 +140,9 @@ class Aika(commands.Bot):
 
         await self.process_commands(after)
 
-    async def on_member_ban(self, guild: discord.Guild, user: Union[discord.Member, discord.User]) -> None:
-        print (f'{Ansi.GREEN!r}{user.name} was banned from {guild.name}.{Ansi.RESET!r}')
+    async def on_member_ban(self, guild: discord.Guild,
+                            user: Union[discord.Member, discord.User]) -> None:
+        print(f'{Ansi.GREEN!r}{user} was banned from {guild}.{Ansi.RESET!r}')
 
     async def on_ready(self) -> None:
         # TODO: maybe use datetime module rather than this w/ formatting?
@@ -125,11 +151,19 @@ class Aika(commands.Bot):
 
         print(f'{Ansi.GREEN!r}Ready{Ansi.RESET!r}: {self.user} ({self.user.id})')
 
-    async def on_command_error(self, ctx: commands.Context, error: commands.errors.CommandError) -> None:
+    async def on_error(self, event, args, **kwargs) -> None:
+        if event != 'on_message':
+            print(f'err: {event}')
+
+    async def on_command_error(self, ctx: commands.Context,
+                               error: commands.errors.CommandError) -> None:
         if hasattr(ctx.command, 'on_error'):
             return
 
-        ignored = (commands.CommandNotFound, commands.UserInputError, commands.NotOwner)
+        ignored = (commands.CommandNotFound,
+                   commands.UserInputError,
+                   commands.NotOwner)
+
         error = getattr(error, 'original', error)
 
         if isinstance(error, ignored):
@@ -148,43 +182,44 @@ class Aika(commands.Bot):
 
         elif isinstance(error, commands.CommandOnCooldown):
             return await ctx.send(
-                f'{ctx.author.mention} that command is still on cooldown for another **{error.retry_after:.2f}** seconds.')
+                f'{ctx.author.mention} that command is still on cooldown ({error.retry_after:.1f}s).')
 
         elif isinstance(error, commands.BotMissingPermissions):
             return await ctx.send(
-                'I have insufficient privileges in the server to perform such a command.')
+                'I have insufficient guild permissions to perform that command.')
 
         elif isinstance(error, commands.MissingPermissions):
             return await ctx.send(
-                'You have insufficient privileges to perform such a command.')
+                'You have insufficient guild permissions to perform that command.')
 
         print(f'Ignoring exception in command {ctx.command}')
         traceback.print_exception(type(error), error, error.__traceback__)
+
 
     #########
     # Utils #
     #########
 
     async def filter_message(self, msg: str) -> bool:
-        return any(f in msg for f in self.config['substring_filters']) \
-            or any(s in self.config['filters'] for s in msg.split())
+        return any(f in msg for f in self.config.substring_filters) \
+            or any(s in self.config.filters for s in msg.split())
 
     async def print_console(self, msg: discord.Message, col: Ansi) -> None:
-        print(f'{col!r}[{datetime.now():%H:%M:%S} {msg.channel.guild.name} #{msg.channel}]',
+        msg_clean = msg.clean_content.replace('\u001b', '')
+        print(f'{col!r}[{datetime.now():%H:%M:%S} {msg.channel.guild} #{msg.channel}]',
             f'{Ansi.GRAY!r} {msg.author}',
-            f'{Ansi.RESET!r}: {msg.clean_content}',
+            f'{Ansi.RESET!r}: {msg_clean}',
             sep = '')
 
     @tasks.loop(seconds = 10)
-    async def bg_loop(self):
+    async def bg_loop(self) -> None:
         await self.wait_until_ready()
 
-        is_420 = (now := datetime.now()).hour in (4, 16) and now.minute == 20
+        is_420 = ((now := datetime.now()).hour in (4, 16) and now.minute == 20) \
+              or (now.month == 4 and now.day == 20)
 
-        await self.change_presence(
-            status = discord.Status.online,
-            activity = discord.Game(f'with {len(self.users)} users!{" (& the joint)" if is_420 else ""}')
-        )
+        msg = f'with {len(self.users)} users!' + (is_420 and ' (& the joint)')
+        await self.change_presence(discord.Game(msg), discord.Status.online)
 
     def run(self) -> None:
         try:
@@ -195,7 +230,6 @@ class Aika(commands.Bot):
 
     async def close(self):
         await super().close()
-        await self.session.close()
 
     @property
     def config(self):
@@ -220,8 +254,7 @@ def main() -> None:
         return
 
     # Run Aika
-    aika = Aika()
-    aika.run()
+    (aika := Aika()).run()
 
 if __name__ == '__main__':
     main()

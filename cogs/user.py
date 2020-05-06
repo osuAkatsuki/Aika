@@ -1,45 +1,77 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from math import log, pow
 from typing import Optional
 from time import time
 from random import randrange
 
+from Aika import Leaderboard
 class User(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.voice_xp.start()
+
+    def cog_unload(self):
+        self.voice_xp.stop()
 
     async def set_xp(self, userID: int, xp: int) -> None:
+        self.bot.db.execute(
+            'UPDATE aika_users SET xp = xp + %s WHERE id = %s',
+            [xp, userID])
+
+    async def add_xp(self, userID: int, xp: int) -> None:
+        self.bot.db.execute(
+            'UPDATE aika_users SET xp = xp + %s WHERE id = %s',
+            [xp, userID])
+
+    async def get_xp(self, userID: int) -> int:
+        return res['xp'] if (
+            res := self.bot.db.fetch(
+                'SELECT xp FROM aika_users WHERE id = %s',
+                [userID])
+            ) else 0
+
+    async def blocked_until(self, userID: int) -> bool:
+        return res['cd'] if (
+            res := self.bot.db.fetch(
+                'SELECT xp_cooldown AS cd FROM aika_users WHERE id = %s',
+                [userID]) # return true so we start the user off
+            ) else True   # if they're new and don't have an acc
+
+    async def can_collect_xp(self, userID) -> bool:
+        return (await self.blocked_until(userID) - time()) <= 0
+
+    async def update_cooldown(self, userID: int, time: int = 60) -> None:
+        self.bot.db.execute(
+            f'UPDATE aika_users SET xp_cooldown = UNIX_TIMESTAMP() + {time} WHERE id = %s',
+            [userID])
+
+    async def log_deleted_message(self, userID: int, count: int = 1) -> None:
         if not await self.user_exists(userID):
             await self.create_user(userID)
 
-        self.bot.db.execute('UPDATE aika_users SET xp = xp + %s WHERE id = %s', [xp, userID])
-
-    async def get_xp(self, userID: int) -> int:
-        res = self.bot.db.fetch('SELECT xp FROM aika_users WHERE id = %s', [userID])
-        return res['xp'] if res and res['xp'] else 0
-
-    async def blocked_until(self, userID: int) -> bool:
-        res = self.bot.db.fetch('SELECT xp_cooldown AS xp_cd FROM aika_users WHERE id = %s', [userID])
-        return res['xp_cd'] if res and res['xp_cd'] else True # return true so we start the user off
-                                                              # if they're new and don't have an acc
+        self.bot.db.execute(
+            'UPDATE aika_users SET deleted_messages = deleted_messages + %s WHERE id = %s',
+            [count, userID]
+        )
 
     async def increment_xp(self, userID: int) -> None:
         if not await self.user_exists(userID):
             await self.create_user(userID)
 
-        if (await self.blocked_until(userID) - time()) <= 0:
-            self.bot.db.execute(
-                'UPDATE aika_users SET xp = xp + %s, xp_cooldown = UNIX_TIMESTAMP() + 60 WHERE id = %s',
-                [randrange(**self.bot.config.xp['range']), userID]
-            )
+        if await self.can_collect_xp(userID):
+            await self.update_cooldown(userID)
+            await self.add_xp(userID, randrange(**self.bot.config.xp['range']))
 
     async def get_level(self, userID: int) -> float: # level is not stored in db, but constructed every time..
-        xp = await self.get_xp(userID)
-        return log(xp) / log(1.5) if xp else 0.0
+        return log(xp) / log(1.5) if (
+            xp := await self.get_xp(userID)
+        ) else 0.0
 
     async def user_exists(self, userID: int) -> bool:
-        return bool(self.bot.db.fetch('SELECT 1 FROM aika_users WHERE id = %s', [userID]))
+        return bool(self.bot.db.fetch(
+            'SELECT 1 FROM aika_users WHERE id = %s',
+            [userID]))
 
     async def create_user(self, userID: int) -> None:
         self.bot.db.execute('INSERT IGNORE INTO aika_users (id) VALUES (%s)', [userID])
@@ -66,6 +98,13 @@ class User(commands.Cog):
 
         await self.increment_xp(after.author.id)
 
+    @commands.Cog.listener()
+    async def on_message_delete(self, msg: discord.Message) -> None:
+        if not await self.user_exists(msg.author.id):
+            await self.create_user(msg.author.id)
+
+        await self.log_deleted_message(msg.author.id)
+
     @commands.command(aliases = ['profile'])
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
@@ -86,13 +125,12 @@ class User(commands.Cog):
 
         level = round(await self.get_level(target.id), 2)
         xp = round(await self.get_xp(target.id), 2)
-        created_date = target.created_at.strftime('%c')
+        created_date = target.created_at.strftime('%b %d %Y\n%H:%M:%S')
 
         e.set_author(name = target.name, icon_url = target.avatar_url)
-        e.add_field(name = 'Level', value = level)
-        e.add_field(name = 'Experience', value = xp)
+        e.add_field(name = 'Experience', value = f'```Lv: {level}\nXP: {xp}```')
         e.add_field(name = 'Account creation', value = created_date)
-        #e.add_field(name = 'Roles', value = ', '.join(str(i) for i in target.roles if i.position))
+        e.add_field(name = 'Highest Role', value = target.top_role)
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e) # TODO: cmyui.codes/u/ profiles?
 
@@ -106,30 +144,51 @@ class User(commands.Cog):
 
         await ctx.send(f'**XP Required**: {pow(1.5, int(level)):.2f}')
 
+    @commands.command(aliases = ['deleterboards', 'dlb'])
+    @commands.guild_only()
+    @commands.cooldown(3, 5, commands.BucketType.user)
+    async def deleterboard(self, ctx: commands.Context) -> None:
+        if not (res := self.bot.db.fetchall(
+            'SELECT id, deleted_messages FROM aika_users ' \
+            'WHERE deleted_messages > 0 ORDER BY deleted_messages DESC LIMIT 10')):
+            return await ctx.send('Not a single soul has ever told a lie..')
+
+        leaderboard = Leaderboard([{
+            'title': user.name if (
+                user := self.bot.get_user(i['id'])
+                ) else '<left guild>',
+            'value': i['deleted_messages']
+        } for i in res])
+
+        e = embed = discord.Embed(
+            colour = self.bot.config.embed_colour,
+            title = 'Deleted message leaderboards.',
+            description = repr(leaderboard))
+
+        e.set_footer(text = f'Aika v{self.bot.config.version}')
+        await ctx.send(embed = e)
+
     @commands.command(aliases = ['lvtop', 'xptop', 'xplb', 'lb', 'xpleaderboard'])
     @commands.guild_only()
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def leaderboard(self, ctx: commands.Context) -> None:
-        if not (res := self.bot.db.fetchall('SELECT id, xp FROM aika_users WHERE xp > 0 ORDER BY xp DESC LIMIT 5')):
+        if not (res := self.bot.db.fetchall(
+            'SELECT id, xp FROM aika_users ' \
+            'WHERE xp > 0 ORDER BY xp DESC LIMIT 10')):
             return await ctx.send(
                 'No users existed - now you should! (run this command again)')
 
+        leaderboard = Leaderboard([{
+            'title': user.name if (
+                user := self.bot.get_user(row['id'])
+                ) else '<left guild>',
+            'value': f"Lv. {log(row['xp']) / log(1.5):.2f} ({row['xp']}xp)"
+        } for row in res])
+
         e = discord.Embed(
             title = 'XP/Level Leaderboards',
-            colour = self.bot.config.embed_colour)
-
-        for i in res:
-            user: Optional[discord.User] = self.bot.get_user(i['id'])
-            e.add_field(
-                name = user.name if user else f'Unknown (ID: {i["id"]})',
-                value = f'Lv. **{log(i["xp"]) / log(1.5):.2f}** ({i["xp"]}xp)'
-            )
-
-        average = sum(i['xp'] for i in res) / len(res)
-        e.add_field(
-            name = 'Top-5 Average',
-            value = f'Lv. **{log(average) / log(1.5):.2f}** ({average:.2f} xp)'
-        )
+            colour = self.bot.config.embed_colour,
+            description = repr(leaderboard))
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e)
@@ -141,6 +200,18 @@ class User(commands.Cog):
         await ctx.send(
             f'You are currently lv{await self.get_level(ctx.author.id):.2f} ' \
             f'({await self.get_xp(ctx.author.id):.2f} xp).')
+
+    # Voice Chat XP
+    @tasks.loop(seconds = 60)
+    async def voice_xp(self) -> None:
+        await self.bot.wait_until_ready()
+
+        check = lambda c: isinstance(c, discord.VoiceChannel)
+
+        for channel in filter(check, self.bot.get_all_channels()):
+            for member in channel.members:
+                if await self.can_collect_xp(member.id):
+                    await self.increment_xp(member.id)
 
 def setup(bot: commands.Bot):
     bot.add_cog(User(bot))

@@ -26,19 +26,19 @@ class Utility(commands.Cog):
         r.append(f'{seconds:.2f}s')
         return ' '.join(r)
 
-    @commands.command(description = 'Returns the current uptime of Aika.')
+    @commands.command()
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def uptime(self, ctx: commands.Context) -> None:
         uptime = await self.format_period(time() - self.bot.uptime)
         await ctx.send(f"I've been running for **{uptime}**.")
 
-    @commands.command(description = "Aika's power button.", hidden = True)
+    @commands.command(hidden = True)
     @commands.is_owner()
     async def shutdown(self, ctx: commands.Context) -> None:
         await ctx.send('Night night..')
         await self.bot.close()
 
-    @commands.command(description = 'Restrict all commands to bot owner.', hidden = True)
+    @commands.command(hidden = True)
     @commands.is_owner()
     async def lock(self, ctx: commands.Context) -> None:
         # TODO: make this server-based rather than bot-based
@@ -54,7 +54,7 @@ class Utility(commands.Cog):
 
     # TODO: prune_user() or combine logic for a specific user wipe into prune()
 
-    @commands.command(description = 'Remove messages in bulk.', hidden = True)
+    @commands.command(hidden = True)
     @commands.guild_only()
     @commands.has_permissions(manage_messages = True)
     async def prune(self, ctx: commands.Context, *, count) -> None:
@@ -92,8 +92,9 @@ class Utility(commands.Cog):
                             f'Aika v{self.bot.config.version}')
         e.add_field(
             name = 'User frequency',
-            value = '```' + '\n'.join(f'{k:<{longest_name}}{v:>8.2f}%' for k, v in percent_map.items()) + '```'
-        )
+            value = '```' + '\n'.join(
+                f'{k:<{longest_name}}{v:>8.2f}%' for k, v in percent_map.items()
+            ) + '```')
         await ctx.send(embed = e)
 
 def setup(bot: commands.Bot):
