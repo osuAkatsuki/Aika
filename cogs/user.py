@@ -73,12 +73,13 @@ class User(commands.Cog):
         if not await self.user_exists(ctx.author.id):
             await self.create_user(ctx.author.id)
 
-        if len(ctx.message.mentions) > 1:
+        if len(set(ctx.message.mentions).remove(self.bot.user)) > 1:
             return await ctx.send(
                 'Invalid syntax - only one user can be fetched at a time.\n' \
                 '**Correct syntax**: `!user (optional: @user)`')
 
-        e = discord.Embed(title = 'User stats', color = self.bot.config.embed_colour)
+        e = discord.Embed(title = 'User stats',
+                          color = self.bot.config.embed_colour)
 
         target = ctx.message.mentions[0] if ctx.message.mentions else ctx.author
 
