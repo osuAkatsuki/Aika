@@ -2,7 +2,7 @@ from typing import Tuple, Dict, Union
 import discord
 from discord.ext import commands
 
-from Aika import Ansi
+from Aika import Ansi, Leaderboard
 
 class Info(commands.Cog):
     def __init__(self, bot):
@@ -28,26 +28,21 @@ class Info(commands.Cog):
     async def faq(self, ctx: commands.Context) -> None:
         # TODO fix: you can do something like !faq cert 2 (if id for cert was 2) to print a callback twice.
         if len(split := list(dict.fromkeys(ctx.message.content.split(' ')))) not in range(2, 5):
-            if not (res := self.bot.db.fetchall('SELECT id, topic, title FROM aika_faq')):
+            if not (res := self.bot.db.fetchall('SELECT topic, title FROM aika_faq')):
                 return await ctx.send('No FAQ callbacks could be fetched from MySQL.')
 
-            longest_id: int = max(len(str(i['id'])) for i in res)
-            longest_topic: int = max(len(i['topic']) for i in res)
-
-            strings: List[str] = []
-            for i in res:
-                strings.append(
-                    f"{str(i['id']) + '.':0>{longest_id + 1}} {i['topic']:^{longest_topic}} - {i['title']:.55s}"
-                )
+            leaderboard = Leaderboard([{
+                'title': row['topic'],
+                'value': row['title']
+            } for row in res])
 
             e = discord.Embed(
-                title = 'Available topics',
                 colour = self.bot.config.embed_colour,
-                description =
+                title = 'Availble topics',
+                description = \
                     f"You'll need to provide an id or topic (accepts multiple delimited by space; max 4).\n"
                     f'**Syntax**: `!{ctx.invoked_with} <id/topic>`\n'
-                    '```md\n' + '\n'.join(strings) + '```'
-            )
+                    + repr(leaderboard))
 
             e.set_footer(text = f'Aika v{self.bot.config.version}')
             return await ctx.send(embed = e)
