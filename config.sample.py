@@ -49,7 +49,4 @@ faq_replacements = {
     'key': 'val'
 }
 
-# how often should the bg_loop() function run? (seconds)
-bg_loop_interval = 10
-
 embed_color = 0x0E1E30 # colour for embeds
