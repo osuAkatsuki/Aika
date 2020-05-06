@@ -235,25 +235,29 @@ class Aika(commands.Bot):
     def config(self):
         return __import__('config')
 
+def ensure_config() -> bool:
+    if path.exists('config.py'):
+        return True
+
+    if not path.exists('config.sample.py'):
+        if not (r := get('https://raw.githubusercontent.com/cmyui/Aika-3/master/config.sample.py')):
+            print(f'{Ansi.LIGHT_RED!r}Failed to fetch default config.{Ansi.RESET!r}')
+            return False
+
+        with open('config.sample.py', 'w+') as f:
+            f.write(r.text)
+
+    copyfile('config.sample.py', 'config.py')
+
+    print(f'{Ansi.CYAN!r}A default config has been generated.{Ansi.RESET!r}')
+    return False
+
 def main() -> None:
     chdir(path.dirname(path.realpath(__file__)))
 
-    # Ensure config
-    if not path.exists('config.py'):
-        if not path.exists('config.sample.py'):
-            if not (r := get('https://raw.githubusercontent.com/cmyui/Aika-3/master/config.sample.py')):
-                print(f'{Ansi.LIGHT_RED!r}Failed to fetch default config.{Ansi.RESET!r}')
-                return
-
-            with open('config.sample.py', 'w+') as f:
-                f.write(r.text)
-
-        copyfile('config.sample.py', 'config.py')
-
-        print(f'{Ansi.CYAN!r}A default config has been generated.{Ansi.RESET!r}')
+    if not ensure_config():
         return
 
-    # Run Aika
     (aika := Aika()).run()
 
 if __name__ == '__main__':
