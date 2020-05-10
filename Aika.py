@@ -20,7 +20,10 @@ def truncate(string: str, length: int) -> str:
 
 class Leaderboard:
     def __init__(self, listings: List[Dict[str, Union[int, str]]]) -> None:
-        self.listings = listings
+        self.listings = [{
+            'title': i['title'].encode('ascii', 'ignore').decode('ascii'),
+            'value': i['value']
+        } for i in listings]
 
     def __repr__(self) -> str:
         longest_id: int = len(str(len(self.listings)))

@@ -107,7 +107,7 @@ class User(commands.Cog):
 
         await self.log_deleted_message(msg.author.id)
 
-    @commands.command(aliases = ['profile'])
+    @commands.command(aliases = ['profile', 'u'])
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
     async def user(self, ctx: commands.Context) -> None:
