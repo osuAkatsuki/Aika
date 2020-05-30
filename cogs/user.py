@@ -115,6 +115,7 @@ class User(commands.Cog):
             await self.create_user(ctx.author.id)
 
         not_aika = lambda u: u != self.bot.user
+
         if len(mentions := list(filter(not_aika, ctx.message.mentions))) > 1:
             return await ctx.send(
                 'Invalid syntax - only one user can be fetched at a time.\n' \
@@ -208,9 +209,9 @@ class User(commands.Cog):
     async def voice_xp(self) -> None:
         await self.bot.wait_until_ready()
 
-        check = lambda c: isinstance(c, discord.VoiceChannel)
+        is_voice = lambda c: isinstance(c, discord.VoiceChannel)
 
-        for channel in filter(check, self.bot.get_all_channels()):
+        for channel in filter(is_voice, self.bot.get_all_channels()):
             for member in channel.members:
                 if await self.can_collect_xp(member.id):
                     await self.increment_xp(member.id, override = True)

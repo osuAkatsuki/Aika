@@ -15,25 +15,29 @@ from enum import IntEnum
 from db import dbConnector
 from mysql.connector import errorcode, Error as SQLError
 
+def remove_non_ascii(string: str) -> str:
+    return string.encode('ascii', 'ignore').decode('ascii')
+
 def truncate(string: str, length: int) -> str:
     return string[:length] + (string[length:] and '..')
 
 class Leaderboard:
     def __init__(self, listings: List[Dict[str, Union[int, str]]]) -> None:
         self.listings = [{
-            'title': i['title'].encode('ascii', 'ignore').decode('ascii'),
+            'title': remove_non_ascii(truncate(i['title'], 12)),
             'value': i['value']
         } for i in listings]
 
     def __repr__(self) -> str:
-        longest_id: int = len(str(len(self.listings)))
-        longest_title: int = min(14, max(
+        len_id: int = len(str(len(self.listings))) + 1
+        len_title: int = min(14, max(
             len(i['title']) for i in self.listings))
 
-        return '```md\n' + '\n'.join(
-            f"{str(idx + 1) + '.':0>{longest_id + 1}} {truncate(i['title'], 12):^{longest_title}} - {i['value']}" \
-                for idx, i in enumerate(self.listings)
-        ) + '```'
+        leaderboard = '\n'.join(
+            f"{f'{idx + 1}.':0>{len_id}} {i['title']:^{len_title}} - {i['value']}"
+            for idx, i in enumerate(self.listings))
+
+        return f'```md\n{leaderboard}```'
 
 class Ansi(IntEnum):
     # Default colours
@@ -243,7 +247,7 @@ def ensure_config() -> bool:
         return True
 
     if not path.exists('config.sample.py'):
-        if not (r := get('https://raw.githubusercontent.com/cmyui/Aika-3/master/config.sample.py')):
+        if not (r := get('http://tiny.cc/l7wzpz')):
             print(f'{Ansi.LIGHT_RED!r}Failed to fetch default config.{Ansi.RESET!r}')
             return False
 
@@ -260,6 +264,8 @@ def main() -> None:
 
     if not ensure_config():
         return
+
+    # TODO: config validation..?
 
     (aika := Aika()).run()
 

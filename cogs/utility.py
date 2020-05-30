@@ -58,44 +58,12 @@ class Utility(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_messages = True)
     async def prune(self, ctx: commands.Context, *, count) -> None:
-        if not count.isdigit():
+        if not count.isdigit() or (count := int(count)) > 1000:
             return await ctx.send(
-                'Invalid syntax.\n**Correct syntax**: `!prune <count>`.')
+                'Invalid syntax.\n**Correct syntax**: `!prune <count (max 1000)>`.')
 
-        count = int(count)
-
-        await ctx.message.delete() # we don't want this in our removed list for stats
-        removed: List[discord.Message] = await ctx.channel.purge(limit = count)
-
-        user_map: Dict[int, int] = {} # userid : message count of messages removed
-        for u in (users := m.author for m in removed):
-            if u.id not in user_map.keys():
-                user_map[u.id] = 0
-            user_map[u.id] += 1
-
-        total: int = sum(user_map.values())
-        percent_map = { # username : % of messages removed
-            self.bot.get_user(k).name: (v / total) * 100 for k, v in user_map.items()
-        }
-        longest_name: int = max(map(len, percent_map))
-
-        # TODO: Words %? lmao
-
-        e = discord.Embed(
-            title = 'Successful prune.',
-            description = f'Removed {count} message{"s" if count > 1 else ""}.',
-            colour = self.bot.config.embed_colour
-        )
-        e.set_thumbnail(url = self.bot.config.thumbnails['global'])
-        e.set_footer(text = f'Statistics only for data nerds.\n' \
-                             'Being active is no crime.\n' \
-                            f'Aika v{self.bot.config.version}')
-        e.add_field(
-            name = 'User frequency',
-            value = '```' + '\n'.join(
-                f'{k:<{longest_name}}{v:>8.2f}%' for k, v in percent_map.items()
-            ) + '```')
-        await ctx.send(embed = e)
+        await ctx.message.delete()
+        await ctx.channel.purge(limit = count)
 
 def setup(bot: commands.Bot):
     bot.add_cog(Utility(bot))
