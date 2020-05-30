@@ -218,15 +218,19 @@ class Aika(commands.Bot):
             f'{Ansi.RESET!r}: {msg_clean}',
             sep = '')
 
-    @tasks.loop(seconds = 10)
+    @tasks.loop(seconds = 15)
     async def bg_loop(self) -> None:
         await self.wait_until_ready()
 
         is_420 = ((now := datetime.now()).hour in (4, 16) and now.minute == 20) \
               or (now.month == 4 and now.day == 20)
 
-        msg = f'with {len(self.users)} users!' + (is_420 and ' (& the joint)')
-        await self.change_presence(discord.Game(msg), discord.Status.online)
+        msg = [f'with {len(self.users)} users!']
+        if is_420: msg.append('& the joint')
+
+        await self.change_presence(
+            activity = discord.Game(' '.join(msg)),
+            status = discord.Status.online)
 
     def run(self) -> None:
         try:
