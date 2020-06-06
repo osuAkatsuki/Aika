@@ -57,23 +57,25 @@ class osu(commands.Cog):
 
         col = Ansi.LIGHT_YELLOW
 
-        for u in filter(lambda u: supporter in u.roles, akatsuki.members):
-            if not res[u.id] & (1 << 2):
-                print(f"{col!r}Removing {u}'s supporter.{Ansi.RESET!r}")
-                await u.remove_roles(supporter)
-
+        # Remove roles
         for u in filter(lambda u: premium in u.roles, akatsuki.members):
             if not res[u.id] & (1 << 23):
                 print(f"{col!r}Removing {u}'s premium.{Ansi.RESET!r}")
                 await u.remove_roles(premium)
 
+        for u in filter(lambda u: supporter in u.roles, akatsuki.members):
+            if not res[u.id] & (1 << 2):
+                print(f"{col!r}Removing {u}'s supporter.{Ansi.RESET!r}")
+                await u.remove_roles(supporter)
+
+        # Add roles
         no_role = lambda u: not any(r in u.roles for r in {supporter, premium})
         for u in filter(lambda u: no_role(u) and u.id in res, akatsuki.members):
             if res[u.id] & (1 << 23):
-                print(f"{col!r}Adding {u}'s supporter.{Ansi.RESET!r}")
+                print(f"{col!r}Adding {u}'s premium.{Ansi.RESET!r}")
                 await u.add_roles(premium)
             elif res[u.id] & (1 << 2):
-                print(f"{col!r}Adding {u}'s premium.{Ansi.RESET!r}")
+                print(f"{col!r}Adding {u}'s supporter.{Ansi.RESET!r}")
                 await u.add_roles(supporter)
 
 def setup(bot: commands.Bot):
