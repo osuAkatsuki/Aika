@@ -44,7 +44,7 @@ class Info(commands.Cog):
                     f'**Syntax**: `!{ctx.invoked_with} <id/topic>`\n'
                     + repr(leaderboard))
 
-            e.set_footer(text = f'Aika v{self.bot.config.version}')
+            e.set_footer(f'Aika v{self.bot.config.version}')
             return await ctx.send(embed = e)
 
         invalid: List[Dict[str, Union[int, str]]] = []
@@ -68,7 +68,7 @@ class Info(commands.Cog):
                     description = select['content'].format(**self.bot.config.faq_replacements),
                     colour = self.bot.config.embed_colour
                 )
-                e.set_footer(text = f'Aika v{self.bot.config.version}')
+                e.set_footer(f'Aika v{self.bot.config.version}')
                 e.set_thumbnail(url = self.bot.config.thumbnails['faq'])
                 await ctx.send(embed = e)
 

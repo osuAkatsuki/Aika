@@ -13,10 +13,10 @@ discord_owner = 123456789012345678
 discord_token = 'your token here owo'
 
 # filter for single whitespace-separated words in chat.
-filters = ['single', 'word', 'matches']
+filters = {'single', 'word', 'matches'}
 
 # filter for substring matches, no whitespace separation required.
-substring_filters = ['sub w-', 'ord', 'matc', 'hes']
+substring_filters = {'sub w-', 'ord', 'matc', 'hes'}
 
 # mysql database information
 mysql = {

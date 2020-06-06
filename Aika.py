@@ -118,9 +118,9 @@ class Aika(commands.Bot):
             and await self.filter_message(message.content.lower())
 
         if self.config.verbose_console:
-            colour = Ansi.LIGHT_RED if filtered else \
-                     Ansi.LIGHT_MAGENTA if message.author.bot else \
-                     Ansi.LIGHT_CYAN
+            colour = Ansi.LIGHT_MAGENTA if message.author.bot \
+                else Ansi.LIGHT_RED if filtered \
+                else Ansi.LIGHT_CYAN
 
             await self.print_console(message, colour)
 
@@ -239,7 +239,7 @@ class Aika(commands.Bot):
             self.bg_loop.start()
             super().run(self.config.discord_token, reconnect=True)
         finally:
-            self.bg_loop.cancel()
+            self.bg_loop.stop()
 
     async def close(self):
         await super().close()
