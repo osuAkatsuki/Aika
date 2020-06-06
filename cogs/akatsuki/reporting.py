@@ -34,7 +34,7 @@ class Reporting(commands.Cog):
         )
 
         e.add_field('Report content', msg.clean_content)
-        e.set_footer(f'Aika v{self.bot.config.version}')
+        e.set_footer(text = f'Aika v{self.bot.config.version}')
         await admin_reports.send(embed = e)
         await msg.delete()
 
@@ -61,7 +61,7 @@ class Reporting(commands.Cog):
             '<additional comments>```'
         ]))
 
-        e.set_footer(f'Aika v{self.bot.config.version}')
+        e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e)
 
 def setup(bot: commands.Bot):

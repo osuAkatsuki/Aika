@@ -134,7 +134,7 @@ class User(commands.Cog):
         e.add_field(name = 'Experience', value = f'```Lv: {level}\nXP: {xp}```')
         e.add_field(name = 'Account creation', value = created_date)
         e.add_field(name = 'Highest Role', value = target.top_role)
-        e.set_footer(f'Aika v{self.bot.config.version}')
+        e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e) # TODO: cmyui.codes/u/ profiles?
 
     @commands.command(aliases = ['lvreq'])
@@ -168,7 +168,7 @@ class User(commands.Cog):
             title = 'Deleted message leaderboards.',
             description = repr(leaderboard))
 
-        e.set_footer(f'Aika v{self.bot.config.version}')
+        e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e)
 
     @commands.command(aliases = ['lvtop', 'xptop', 'xplb', 'lb', 'xpleaderboard'])
@@ -193,7 +193,7 @@ class User(commands.Cog):
             colour = self.bot.config.embed_colour,
             description = repr(leaderboard))
 
-        e.set_footer(f'Aika v{self.bot.config.version}')
+        e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e)
 
     @commands.command(aliases = ['lv', 'getlv', 'checklv'])
