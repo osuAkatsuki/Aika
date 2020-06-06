@@ -8,7 +8,7 @@ from time import time
 from datetime import datetime
 import traceback
 from shutil import copyfile
-from requests import get # DONT USE IN ASYNC FUNCTIONS!
+from requests import get # use aiohttp for async
 
 from enum import IntEnum
 
@@ -132,7 +132,8 @@ class Aika(commands.Bot):
     async def on_message_edit(self, before: discord.Message,
                               after: discord.Message) -> None:
         await self.wait_until_ready()
-        if not after.content or after.author.bot:
+        if not after.content or after.author.bot \
+        or (before.content == after.content and before.embeds != after.embeds):
             return
 
         filtered = self.config.filters \
@@ -222,8 +223,9 @@ class Aika(commands.Bot):
     async def bg_loop(self) -> None:
         await self.wait_until_ready()
 
-        is_420 = ((now := datetime.now()).hour in (4, 16) and now.minute == 20) \
-              or (now.month == 4 and now.day == 20)
+        now = datetime.now()
+        is_420 = any(now.hour in {4, 16} and now.minute == 20,
+                     now.month == 4 and now.day == 20)
 
         msg = [f'with {len(self.users)} users!']
         if is_420: msg.append('& the joint')
