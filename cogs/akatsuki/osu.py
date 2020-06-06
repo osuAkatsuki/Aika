@@ -12,12 +12,6 @@ class osu(commands.Cog):
     def cog_unload(self):
         self.manage_roles.stop()
 
-    @commands.Cog.listener()
-    @commands.guild_only()
-    async def on_message(self, msg: discord.Message) -> None:
-        if msg.channel.id != self.bot.config.akatsuki['channels']['verify']:
-            return
-
     @commands.command()
     @commands.guild_only()
     async def linkosu(self, ctx: commands.Context) -> None:

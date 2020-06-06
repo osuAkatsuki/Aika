@@ -45,7 +45,7 @@ class Reporting(commands.Cog):
         e = discord.Embed(
             colour = self.bot.config.embed_colour,
             title = 'Welcome to the player reporting channel!',
-            description = 'A place to anonymously report users who have broken the Law:tm:'
+            description = 'A place to report users who have broken the Law:tm:'
         )
 
         e.add_field('Information & Rules', '\n'.join([
