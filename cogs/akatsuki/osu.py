@@ -10,7 +10,7 @@ class osu(commands.Cog):
         self.manage_roles.start()
 
     def cog_unload(self):
-        self.manage_roles.stop()
+        self.manage_roles.cancel()
 
     @commands.command()
     @commands.guild_only()
@@ -51,7 +51,7 @@ class osu(commands.Cog):
             row['id']: row['privileges'] for row in self.bot.db.fetchall(
                 'SELECT aika_users.id, users.privileges FROM aika_users '
                 'LEFT JOIN users ON users.id = aika_users.osu_id '
-                'WHERE aika_users.osu_id IS NOT NULL'
+                'WHERE aika_users.osu_id'
             )
         })
 
