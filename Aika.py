@@ -219,6 +219,11 @@ class Aika(commands.Bot):
             f'{Ansi.RESET!r}: {msg_clean}',
             sep = '')
 
+    @staticmethod
+    async def fetch(session, url):
+        async with session.get(url) as resp:
+            return await resp.text()
+
     @tasks.loop(seconds = 15)
     async def bg_loop(self) -> None:
         await self.wait_until_ready()
@@ -227,7 +232,19 @@ class Aika(commands.Bot):
         is_420 = any((now.hour in {4, 16} and now.minute == 20,
                       now.month == 4 and now.day == 20))
 
-        msg = [f'with {len(self.users)} users!']
+        import aiohttp
+        from json import loads
+
+        counts = [len(self.users)]
+
+        async with aiohttp.ClientSession() as session:
+            html = await self.fetch(
+                session, 'http://144.217.254.156:5001/api/v1/onlineUsers')
+
+            if html:
+                counts.append(loads(html)['result'])
+
+        msg = [f'with {" / ".join(counts)} users!']
         if is_420: msg.append('& the joint')
 
         await self.change_presence(
