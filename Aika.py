@@ -224,8 +224,8 @@ class Aika(commands.Bot):
         await self.wait_until_ready()
 
         now = datetime.now()
-        is_420 = any(now.hour in {4, 16} and now.minute == 20,
-                     now.month == 4 and now.day == 20)
+        is_420 = any((now.hour in {4, 16} and now.minute == 20,
+                      now.month == 4 and now.day == 20))
 
         msg = [f'with {len(self.users)} users!']
         if is_420: msg.append('& the joint')
