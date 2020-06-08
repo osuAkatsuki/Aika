@@ -244,7 +244,7 @@ class Aika(commands.Bot):
             if html:
                 counts.append(loads(html)['result'])
 
-        msg = [f'with {" / ".join(counts)} users!']
+        msg = [f'with {" / ".join(str(i) for i in counts)} users!']
         if is_420: msg.append('& the joint')
 
         await self.change_presence(
