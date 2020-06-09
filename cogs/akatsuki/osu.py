@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands, tasks
 
+from datetime import datetime as dt, timezone as tz
+
 from collections import defaultdict
 from Aika import Ansi
 
@@ -37,7 +39,16 @@ class osu(commands.Cog):
                 f'> **https://akatsuki.pw/u/{res["osu_id"]}**'
             ]))
 
-    @tasks.loop(minutes = 30)
+    @commands.command(hidden = True)
+    @commands.guild_only()
+    async def next_roleupdate(self, ctx: commands.Context) -> None:
+        t = (self.manage_roles.next_iteration - dt.now(tz.utc)).total_seconds()
+        minutes = int(t // 60)
+        seconds = int(t % 60)
+        await ctx.send(
+            f'Next iteration in {minutes}:{seconds:02d}.')
+
+    @tasks.loop(minutes = 5, seconds = 15)
     async def manage_roles(self) -> None:
         await self.bot.wait_until_ready()
 
@@ -51,7 +62,7 @@ class osu(commands.Cog):
             row['id']: row['privileges'] for row in self.bot.db.fetchall(
                 'SELECT aika_users.id, users.privileges FROM aika_users '
                 'LEFT JOIN users ON users.id = aika_users.osu_id '
-                'WHERE aika_users.osu_id'
+                'WHERE aika_users.osu_id NOT IN (NULL, 0)'
             )
         })
 
@@ -70,7 +81,7 @@ class osu(commands.Cog):
 
         # Add roles
         no_role = lambda u: not any(r in u.roles for r in {supporter, premium})
-        for u in filter(lambda u: no_role(u) and u.id in res, akatsuki.members):
+        for u in filter(lambda u: u.id in res and no_role(u), akatsuki.members):
             if res[u.id] & (1 << 23):
                 print(f"{col!r}Adding {u}'s premium.{Ansi.RESET!r}")
                 await u.add_roles(premium)

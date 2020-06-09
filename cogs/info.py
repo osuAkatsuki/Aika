@@ -51,7 +51,7 @@ class Info(commands.Cog):
         types: List[str] = []
 
         for i in split[1:]:
-            types.append('id' if i.isdigit() else 'topic')
+            types.append('id' if i.isdecimal() else 'topic')
             for f in self.faq:
                 if i == str(f[types[-1]]): break
             else:
@@ -84,7 +84,7 @@ class Info(commands.Cog):
         split = [s.strip() for s in split]
 
         # topic cannot be an int or it will break id/topic search
-        if split[0].isdigit():
+        if split[0].isdecimal():
             return await ctx.send(
                 'Topic name cannot be a number (it may include them, but not be limited to just numbers).')
 

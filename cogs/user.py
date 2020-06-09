@@ -141,7 +141,7 @@ class User(commands.Cog):
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
     async def levelreq(self, ctx: commands.Context, *, level) -> None:
-        if not level.isdigit():
+        if not level.isdecimal():
             return await ctx.send(
                 'Invalid syntax.\n**Correct syntax**: `!lvreq <level>`')
 

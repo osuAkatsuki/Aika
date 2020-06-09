@@ -58,7 +58,7 @@ class Utility(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_messages = True)
     async def prune(self, ctx: commands.Context, *, count) -> None:
-        if not count.isdigit() or (count := int(count)) > 1000:
+        if not count.isdecimal() or (count := int(count)) > 1000:
             return await ctx.send(
                 'Invalid syntax.\n**Correct syntax**: `!prune <count (max 1000)>`.')
 
