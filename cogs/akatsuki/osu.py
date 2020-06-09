@@ -48,7 +48,7 @@ class osu(commands.Cog):
         await ctx.send(
             f'Next iteration in {minutes}:{seconds:02d}.')
 
-    @tasks.loop(minutes = 5, seconds = 15)
+    @tasks.loop(minutes = 15)
     async def manage_roles(self) -> None:
         await self.bot.wait_until_ready()
 
