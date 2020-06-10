@@ -32,8 +32,7 @@ class Reporting(commands.Cog):
             title = 'New report recieved',
             description = f'{msg.author.mention} has submitted a player report.'
         )
-
-        e.add_field('Report content', msg.clean_content)
+        e.add_field(name = 'Report content', value = msg.clean_content)
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         await admin_reports.send(embed = e)
         await msg.delete()
@@ -48,7 +47,7 @@ class Reporting(commands.Cog):
             description = 'A place to report users who have broken the Law:tm:'
         )
 
-        e.add_field('Information & Rules', '\n'.join([
+        e.add_field(name = 'Information & Rules', value = '\n'.join([
             "To keep things running smoothly, we have a couple of rules.\n",
             "1. Please do not ping any staff members here, we will get to your report; no need to rush us.",
             "2. Please only submit one report - make sure you've included all information before submitting!"
