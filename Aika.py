@@ -8,7 +8,9 @@ from time import time
 from datetime import datetime
 import traceback
 from shutil import copyfile
-from requests import get # use aiohttp for async
+from requests import get
+import aiohttp
+from json import loads
 
 from enum import IntEnum
 
@@ -231,9 +233,6 @@ class Aika(commands.Bot):
         now = datetime.now()
         is_420 = any((now.hour in {4, 16} and now.minute == 20,
                       now.month == 4 and now.day == 20))
-
-        import aiohttp
-        from json import loads
 
         counts = [len(self.users)]
 
