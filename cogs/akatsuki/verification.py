@@ -18,9 +18,14 @@ class Verification(commands.Cog):
 
             general = msg.guild.get_channel(
                 self.bot.config.akatsuki['channels']['general'])
-            await general.send(
-                f'Welcome {msg.author.mention} to Akatsuki! If you need '
-                'help, check out our FAQ, or ask in our help channel.')
+
+            faq_id = self.bot.config.akatsuki['channels']['faq']
+            help_id = self.bot.config.akatsuki['channels']['help']
+
+            await general.send('\n'.join([
+                f'Welcome {msg.author.mention} to Akatsuki!',
+                f'If you need help, check out <#{faq_id}>, or ask in <#{help_id}>.'
+            ]))
 
         await msg.delete()
 

@@ -53,7 +53,7 @@ class Reporting(commands.Cog):
             "2. Please only submit one report - make sure you've included all information before submitting!"
         ]))
 
-        e.add_field('Report format', '\n'.join([
+        e.add_field(name = 'Report format', value = '\n'.join([
             'Please submit all reports using the following format:```',
             '<player profile url>',
             '<reason>',
