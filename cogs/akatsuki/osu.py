@@ -23,15 +23,23 @@ class osu(commands.Cog):
         )
 
         if not (res and res['osu_id']):
+            try: # Send PM first, since if we fail we need to warn user.
+                await ctx.author.send('\n'.join([
+                    'Please paste the following command into #osu (or dm with Aika) ingame.',
+                    f'> `!vdiscord {ctx.author.id << 2}`'
+                ]))
+            except discord.Forbidden:
+                return await ctx.send('\n'.join([
+                    'I was unable to DM you your code!',
+                    'You probably have DMs from non-friends disabled on Discord..'
+                ]))
+
             # "Unlock" the account by setting the ID to 0 instead of null
             self.bot.db.execute(
                 'UPDATE aika_users SET osu_id = 0 WHERE id = %s',
                 [ctx.author.id])
 
-            await ctx.send('\n'.join([
-                'Please paste the following command into #osu (or dm with Aika) ingame.',
-                f'> `!vdiscord {ctx.author.id}`'
-            ]))
+            await ctx.message.delete()
         else:
             await ctx.send('\n'.join([
                 'Your Discord has already been linked to an osu!Akatsuki account!',
