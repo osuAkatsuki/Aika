@@ -55,12 +55,17 @@ class User(commands.Cog):
             [count, userID]
         )
 
-    async def increment_xp(self, userID: int, override = False) -> None:
+    async def increment_xp(
+        self, userID: int, multiplier: float = 1.0,
+        override: bool = False) -> None:
         if not await self.user_exists(userID):
             await self.create_user(userID)
 
         if override or await self.can_collect_xp(userID):
-            await self.add_xp(userID, randrange(**self.bot.config.xp['range']))
+            xprange = [int(i * multiplier) for i in self.bot.config.xp['range']]
+            rand = randrange(*xprange)
+            print(f'Awarding {rand}xp to {userID} ({multiplier}x) ({"Voice" if override else "Text"})')
+            await self.add_xp(userID, rand)
 
             if not override:
                 await self.update_cooldown(userID)
@@ -209,12 +214,25 @@ class User(commands.Cog):
     async def voice_xp(self) -> None:
         await self.bot.wait_until_ready()
 
-        is_voice = lambda c: isinstance(c, discord.VoiceChannel)
+        is_voice = lambda c: isinstance(c, discord.VoiceChannel) \
+                         and c != c.guild.afk_channel
 
         for channel in filter(is_voice, self.bot.get_all_channels()):
-            for member in channel.members:
-                if await self.can_collect_xp(member.id):
-                    await self.increment_xp(member.id, override = True)
+            for member, state in channel.voice_states.items():
+                if state.self_deaf: # Deafened gives no xp
+                    continue
+
+                multiplier = 1.0
+
+                if state.self_video: # Video multiplies xp gain by 2
+                    multiplier *= 2
+                if state.self_stream: # Game streaming multiplies xp gain by 1.5
+                    multiplier *= 1.5
+                if state.self_mute: # Muted divides xp gain by 2
+                    multiplier /= 2
+
+                if not state.self_deaf:
+                    await self.increment_xp(member, multiplier, override = True)
 
 def setup(bot: commands.Bot):
     bot.add_cog(User(bot))
