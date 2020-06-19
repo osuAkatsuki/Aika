@@ -234,8 +234,7 @@ class User(commands.Cog):
                 if state.self_mute: # Muted divides xp gain by 2
                     multiplier /= 2
 
-                if not state.self_deaf:
-                    await self.increment_xp(member, multiplier, override = True)
+                await self.increment_xp(member, multiplier, override = True)
 
 def setup(bot: commands.Bot):
     bot.add_cog(User(bot))
