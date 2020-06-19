@@ -218,6 +218,9 @@ class User(commands.Cog):
                          and c != c.guild.afk_channel
 
         for channel in filter(is_voice, self.bot.get_all_channels()):
+            if len(channel.voice_states) < 2: # Channel has < 2 people
+                continue
+
             for member, state in channel.voice_states.items():
                 if state.self_deaf: # Deafened gives no xp
                     continue
