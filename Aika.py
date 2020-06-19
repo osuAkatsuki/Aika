@@ -116,7 +116,7 @@ class Aika(commands.Bot):
         if not message.content or message.author.bot:
             return
 
-        filtered = self.config.filters \
+        filtered = (self.config.filters or self.config.substring_filters) \
             and await self.filter_message(message.content.lower())
 
         if self.config.verbose_console:
