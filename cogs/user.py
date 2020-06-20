@@ -160,10 +160,14 @@ class User(commands.Cog):
             name = 'Server joined',
             value = format_date(target.joined_at),
             inline = False)
-        e.add_field(
-            name = 'Roles',
-            value = ', '.join(reversed([r.name for r in target.roles])),
-            inline = False)
+
+        roles = [r.mention for r in filter(lambda r: r.position != 0, target.roles)]
+
+        if roles:
+            e.add_field(
+                name = 'Roles',
+                value = ', '.join(reversed(roles)),
+                inline = False)
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         e.set_thumbnail(url = target.avatar_url)
