@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands, tasks
-from math import log, pow
+from math import sqrt, pow
 from typing import Optional
 from time import time
 from random import randrange
@@ -69,7 +69,7 @@ class User(commands.Cog):
                 await self.update_cooldown(userID)
 
     async def get_level(self, userID: int) -> float: # level is not stored in db, but constructed every time..
-        return log(xp) / log(1.5) if (
+        return sqrt(xp / 50) if (
             xp := await self.get_xp(userID)
         ) else 0.0
 
@@ -222,7 +222,7 @@ class User(commands.Cog):
             'title': user.name if (
                 user := self.bot.get_user(row['id'])
                 ) else '<left guild>',
-            'value': f"Lv. {log(row['xp']) / log(1.5):.2f} ({row['xp']}xp)"
+            'value': f"Lv. {sqrt(row['xp'] / 50):.2f} ({row['xp']}xp)"
         } for row in res])
 
         e = discord.Embed(
