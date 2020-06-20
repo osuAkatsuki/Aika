@@ -4,6 +4,7 @@ from math import log, pow
 from typing import Optional
 from time import time
 from random import randrange
+from collections import defaultdict
 
 from Aika import Leaderboard
 class User(commands.Cog):
@@ -146,17 +147,22 @@ class User(commands.Cog):
                 f'**Lv** {await self.get_level(target.id):.2f}',
                 f'**Xp** {await self.get_xp(target.id):,}'
             ]))
+
+        ordinal = defaultdict(lambda: 'th', {'1': 'st', '2': 'nd', '3': 'rd'})
+
+        format_date = lambda d: f'{d:%A, %B %d{ordinal[str(d.day)[-1]]} %Y @ %I:%M:%S %p}'
+
         e.add_field(
             name = 'Account creation',
-            value = f'{target.created_at:%A, %B %d %Y @ %I:%M:%S %p}',
+            value = format_date(target.created_at),
             inline = False)
         e.add_field(
             name = 'Server joined',
-            value = f'{target.joined_at:%A, %B %d %Y @ %I:%M:%S %p}',
+            value = format_date(target.joined_at),
             inline = False)
         e.add_field(
             name = 'Roles',
-            value = ', '.join(r.name for r in target.roles),
+            value = ', '.join(reversed([r.name for r in target.roles])),
             inline = False)
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
