@@ -148,9 +148,8 @@ class User(commands.Cog):
                 f'**Xp** {await self.get_xp(target.id):,}'
             ]))
 
-        ordinal = defaultdict(lambda: 'th', {'1': 'st', '2': 'nd', '3': 'rd'})
-
-        format_date = lambda d: f'{d:%A, %B %d{ordinal[str(d.day)[-1]]} %Y @ %I:%M:%S %p}'
+        ordinal = lambda n: f'{n}{"tsnrhtdd"[(n/10%10!=1)*(n%10<4)*n%10::4]}'
+        format_date = lambda d: f'{d:%A, %B {ordinal(d.day)} %Y @ %I:%M:%S %p}'
 
         e.add_field(
             name = 'Account creation',
