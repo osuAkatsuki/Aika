@@ -39,10 +39,12 @@ class Info(commands.Cog):
             e = discord.Embed(
                 colour = self.bot.config.embed_colour,
                 title = 'Availble topics',
-                description = \
-                    f"You'll need to provide an id or topic (accepts multiple delimited by space; max 4).\n"
-                    f'**Syntax**: `!{ctx.invoked_with} <id/topic>`\n'
-                    + repr(leaderboard))
+                description = '\n'.join([
+                    f"You'll need to provide an id or topic (accepts multiple delimited by space; max 4).",
+                    f'**Syntax**: `!{ctx.invoked_with} <id/topic>`',
+                    repr(leaderboard)
+                ])
+            )
 
             e.set_footer(text = f'Aika v{self.bot.config.version}')
             return await ctx.send(embed = e)

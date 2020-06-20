@@ -59,8 +59,10 @@ class Utility(commands.Cog):
     @commands.has_permissions(manage_messages = True)
     async def prune(self, ctx: commands.Context, *, count) -> None:
         if not count.isdecimal() or (count := int(count)) > 1000:
-            return await ctx.send(
-                'Invalid syntax.\n**Correct syntax**: `!prune <count (max 1000)>`.')
+            return await ctx.send('\n'.join([
+                'Invalid syntax.',
+                '**Correct syntax**: `!prune <count (max 1000)>`.'
+            ]))
 
         await ctx.message.delete()
         await ctx.channel.purge(limit = count)

@@ -19,5 +19,5 @@ Since then, I have left Akatsuki, and have been focusing much more on improving 
 
 Things that are already bothering me
 ------------------------------------
-1. There are a few little rough spots in the code that just feel wrong - I just feel like there are better ways to solve the puzzle, I just can't see it I guess.
+1. Some spots in the code are quite poorly written and make the codebase rather unreadable - going to have to do some refactoring.
 2. Not really bothering me but the leveling system is very obviously garbage and non-permanent; needs to be fixed soon.

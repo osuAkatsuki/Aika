@@ -43,17 +43,16 @@ class User(commands.Cog):
 
     async def update_cooldown(self, userID: int, time: int = 60) -> None:
         self.bot.db.execute(
-            f'UPDATE aika_users SET xp_cooldown = UNIX_TIMESTAMP() + {time} WHERE id = %s',
-            [userID])
+            f'UPDATE aika_users SET xp_cooldown = UNIX_TIMESTAMP() + {time} '
+            'WHERE id = %s', [userID])
 
     async def log_deleted_message(self, userID: int, count: int = 1) -> None:
         if not await self.user_exists(userID):
             await self.create_user(userID)
 
         self.bot.db.execute(
-            'UPDATE aika_users SET deleted_messages = deleted_messages + %s WHERE id = %s',
-            [count, userID]
-        )
+            'UPDATE aika_users SET deleted_messages = deleted_messages + %s '
+            'WHERE id = %s', [count, userID])
 
     async def increment_xp(
         self, userID: int, multiplier: float = 1.0,
@@ -63,9 +62,7 @@ class User(commands.Cog):
 
         if override or await self.can_collect_xp(userID):
             xprange = [int(i * multiplier) for i in self.bot.config.xp['range']]
-            rand = randrange(*xprange)
-            print(f'Awarding {rand}xp to {userID} ({multiplier}x) ({"Voice" if override else "Text"})')
-            await self.add_xp(userID, rand)
+            await self.add_xp(userID, randrange(*xprange))
 
             if not override:
                 await self.update_cooldown(userID)
@@ -76,12 +73,14 @@ class User(commands.Cog):
         ) else 0.0
 
     async def user_exists(self, userID: int) -> bool:
-        return bool(self.bot.db.fetch(
+        return self.bot.db.fetch(
             'SELECT 1 FROM aika_users WHERE id = %s',
-            [userID]))
+            [userID]) is not None
 
     async def create_user(self, userID: int) -> None:
-        self.bot.db.execute('INSERT IGNORE INTO aika_users (id) VALUES (%s)', [userID])
+        self.bot.db.execute(
+            'INSERT IGNORE INTO aika_users (id) VALUES (%s)',
+            [userID])
 
     # sadly the listeners are called after the main listeners meaning there isn't really a clean
     # way to increment xp before displying their xp a user types !xp, so if they can gain xp, the
@@ -122,24 +121,46 @@ class User(commands.Cog):
         not_aika = lambda u: u != self.bot.user
 
         if len(mentions := list(filter(not_aika, ctx.message.mentions))) > 1:
-            return await ctx.send(
-                'Invalid syntax - only one user can be fetched at a time.\n' \
-                '**Correct syntax**: `!user (optional: @user)`')
+            return await ctx.send('\n'.join([
+                'Invalid syntax - only one user can be fetched at a time.',
+                '**Correct syntax**: `!user (optional: @user)`'
+            ]))
 
-        e = discord.Embed(title = 'User stats',
-                          color = self.bot.config.embed_colour)
+        e = discord.Embed(
+            color = self.bot.config.embed_colour
+        )
 
         target = mentions[0] if mentions else ctx.author
 
-        level = round(await self.get_level(target.id), 2)
-        xp = round(await self.get_xp(target.id), 2)
-        created_date = target.created_at.strftime('%b %d %Y\n%H:%M:%S')
+        e.set_author(
+            name = f'{target.display_name} ({target.name}#{target.discriminator})',
+            icon_url = target.avatar_url
+        )
 
-        e.set_author(name = target.name, icon_url = target.avatar_url)
-        e.add_field(name = 'Experience', value = f'```Lv: {level}\nXP: {xp}```')
-        e.add_field(name = 'Account creation', value = created_date)
-        e.add_field(name = 'Highest Role', value = target.top_role)
+        e.add_field(
+            name = 'ID',
+            value = target.id)
+        e.add_field(
+            name = 'Activity stats',
+            value = ' | '.join([ # TODO: add rank
+                f'**Lv** {await self.get_level(target.id):.2f}',
+                f'**Xp** {await self.get_xp(target.id):,}'
+            ]))
+        e.add_field(
+            name = 'Account creation',
+            value = f'{target.created_at:%A, %B %d %Y @ %I:%M:%S %p}',
+            inline = False)
+        e.add_field(
+            name = 'Server joined',
+            value = f'{target.joined_at:%A, %B %d %Y @ %I:%M:%S %p}',
+            inline = False)
+        e.add_field(
+            name = 'Roles',
+            value = ', '.join(r.name for r in target.roles),
+            inline = False)
+
         e.set_footer(text = f'Aika v{self.bot.config.version}')
+        e.set_thumbnail(url = target.avatar_url)
         await ctx.send(embed = e) # TODO: cmyui.codes/u/ profiles?
 
     @commands.command(aliases = ['lvreq'])
@@ -157,9 +178,10 @@ class User(commands.Cog):
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def deleterboard(self, ctx: commands.Context) -> None:
         if not (res := self.bot.db.fetchall(
-            'SELECT id, deleted_messages FROM aika_users ' \
-            'WHERE deleted_messages > 0 ORDER BY deleted_messages DESC LIMIT 10')):
-            return await ctx.send('Not a single soul has ever told a lie..')
+            'SELECT id, deleted_messages FROM aika_users '
+            'WHERE deleted_messages > 0 ORDER BY deleted_messages '
+            'DESC LIMIT 10')
+        ): return await ctx.send('Not a single soul has ever told a lie..')
 
         leaderboard = Leaderboard([{
             'title': user.name if (
@@ -181,10 +203,10 @@ class User(commands.Cog):
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def leaderboard(self, ctx: commands.Context) -> None:
         if not (res := self.bot.db.fetchall(
-            'SELECT id, xp FROM aika_users ' \
-            'WHERE xp > 0 ORDER BY xp DESC LIMIT 10')):
-            return await ctx.send(
-                'No users existed - now you should! (run this command again)')
+            'SELECT id, xp FROM aika_users '
+            'WHERE xp > 0 ORDER BY xp DESC LIMIT 10')
+        ): return await ctx.send(
+            'No users existed - now you should! (run this command again)')
 
         leaderboard = Leaderboard([{
             'title': user.name if (
@@ -206,7 +228,7 @@ class User(commands.Cog):
     @commands.guild_only()
     async def level(self, ctx: commands.Context) -> None:
         await ctx.send(
-            f'You are currently lv{await self.get_level(ctx.author.id):.2f} ' \
+            f'You are currently lv{await self.get_level(ctx.author.id):.2f} '
             f'({await self.get_xp(ctx.author.id):.2f} xp).')
 
     # Voice Chat XP
@@ -227,11 +249,11 @@ class User(commands.Cog):
 
                 multiplier = 1.0
 
-                if state.self_video: # Video multiplies xp gain by 2
+                if state.self_video:
                     multiplier *= 2
-                if state.self_stream: # Game streaming multiplies xp gain by 1.5
+                if state.self_stream:
                     multiplier *= 1.5
-                if state.self_mute: # Muted divides xp gain by 2
+                if state.self_mute:
                     multiplier /= 2
 
                 await self.increment_xp(member, multiplier, override = True)
