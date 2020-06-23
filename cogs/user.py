@@ -68,10 +68,15 @@ class User(commands.Cog):
             if not override:
                 await self.update_cooldown(userID)
 
-    async def get_level(self, userID: int) -> float: # level is not stored in db, but constructed every time..
-        return sqrt(xp / 50) if (
-            xp := await self.get_xp(userID)
-        ) else 0.0
+    async def calculate_level(self, xp: int) -> float:
+        return sqrt(xp / 50)
+
+    async def get_rank(self, xp: int) -> int:
+        return res['rank'] if (res := self.bot.db.fetch(
+            'SELECT (COUNT(*) + 1) rank '
+            'FROM aika_users WHERE xp > %s',
+            [xp]
+        )) else 0
 
     async def user_exists(self, userID: int) -> bool:
         return self.bot.db.fetch(
@@ -141,12 +146,15 @@ class User(commands.Cog):
         e.add_field(
             name = 'ID',
             value = target.id)
+
+        xp = await self.get_xp(target.id)
+        lv = await self.calculate_level(xp)
+        rank = await self.get_rank(xp)
+
         e.add_field(
             name = 'Activity stats',
-            value = ' | '.join([ # TODO: add rank
-                f'**Lv** {await self.get_level(target.id):.2f}',
-                f'**Xp** {await self.get_xp(target.id):,}'
-            ]))
+            value = f'**[#{rank}]** Lv. {lv:.2f} ({xp:,}xp)'
+        )
 
         ordinal = lambda n: f'{n}{"tsnrhtdd"[(n//10%10!=1)*(n%10<4)*n%10::4]}'
         format_date = lambda d: f'{d:%A, %B {ordinal(d.day)} %Y @ %I:%M:%S %p}'
@@ -236,9 +244,9 @@ class User(commands.Cog):
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
     async def level(self, ctx: commands.Context) -> None:
-        await ctx.send(
-            f'You are currently lv{await self.get_level(ctx.author.id):.2f} '
-            f'({await self.get_xp(ctx.author.id):.2f} xp).')
+        xp = await self.get_xp(ctx.author.id)
+        lv = await self.calculate_level(xp)
+        await ctx.send(f'You are currently Lv. {lv:.2f} ({xp:,}xp).')
 
     # Voice Chat XP
     @tasks.loop(minutes = 2.5)
