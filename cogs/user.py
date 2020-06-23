@@ -271,7 +271,7 @@ class User(commands.Cog):
             for member, state in channel.voice_states.items():
                 if state.self_deaf: # Deafened gives no xp
                     continue
-s
+
                 multiplier = 1.0
                 if state.self_video: multiplier *= 2
                 if state.self_stream: multiplier *= 1.5
