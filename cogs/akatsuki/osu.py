@@ -89,11 +89,13 @@ class osu(commands.Cog):
             ): return await ctx.send('The user has no scores!.')
 
             e = discord.Embed(
+                title = res['sn'],
+                url = f"https://akatsuki.pw/b/{res['bid']}",
                 color = self.bot.config.embed_colour)
 
             name = res['username']
             if res['tag']: # add clan
-                name = f"{res['tag']} {name}"
+                name = f"[{res['tag']}] {name}"
 
             e.set_author(
                 name = name,
@@ -131,9 +133,8 @@ class osu(commands.Cog):
                     '**{points} ({acc:.2f}% {s_combo}/{b_combo}x) {mods}**',
                     '{grade} {{ {300_count}x300, {100_count}x100, {50_count}x50, {misses_count}xM }}']),
                 'Beatmap information': '\n'.join([
-                    '**__[{sn}](https://akatsuki.pw/b/{bid})__ (__[Download](https://akatsuki.pw/d/{bsid})__)**',
                     '**{ranked} \⭐ {difficulty:.2f} | {length} @ \🎵 {bpm}**',
-                    '**AR** {ar} **OD** {od}'])
+                    '**AR** {ar} **OD** {od} **[__[Download](https://akatsuki.pw/d/{bsid})__]**'])
             }
 
             for k, v in embeds.items():
