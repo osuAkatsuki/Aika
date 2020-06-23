@@ -188,16 +188,18 @@ class User(commands.Cog):
     @commands.command(aliases = ['lvreq'])
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
-    async def levelreq(self, ctx: commands.Context, *, level) -> None:
-        if not utils.isfloat(level):
+    async def levelreq(self, ctx: commands.Context, *, _lv) -> None:
+        if not (level := utils.try_parse_float(_lv)):
             return await ctx.send(
                 'Invalid syntax.\n**Correct syntax**: `!lvreq <level>`')
 
-        xp = await self.calculate_xp(float(level))
+        xp = await self.calculate_xp(level)
         current_xp = await self.get_xp(ctx.author.id)
         pc = (current_xp / (current_xp + xp)) * 100 # percent there!
-        await ctx.send(
-            f'**XP required: {xp:,}** ({xp - current_xp:,} to go! [{pc:.2f}%]).')
+        await ctx.send('\n'.join([
+            f'**Level progression to {level:.2f}.**',
+            f'> `{current_xp:,}/{xp:,}xp ({pc:.2f}%)`'
+        ]))
 
     @commands.command(aliases = ['deleterboards', 'dlb'])
     @commands.guild_only()

@@ -1,3 +1,5 @@
+# This is basically a disaster file of all the utilities i always
+# end up dragging around with me.. and some even more wild ones
 from typing import List, Optional
 from enum import IntEnum
 
@@ -190,3 +192,6 @@ def accuracy_grade(
 
 def isfloat(s: str) -> bool: # obviously not made for safety
     return s.replace('-', '', 1).replace('.', '', 1).isdigit()
+
+def try_parse_float(s: str) -> Optional[float]:
+    return float(s) if isfloat(s) else None
