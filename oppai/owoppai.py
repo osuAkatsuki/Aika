@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from typing import Tuple
 from os import chdir, path
 from subprocess import run, PIPE

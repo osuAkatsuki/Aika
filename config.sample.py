@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # extensions to be used on boot
 initial_extensions = [
     'user', 'utility', 'info'
@@ -49,5 +51,5 @@ faq_replacements = {
     'key': 'val'
 }
 
-embed_color = 0xAC88D8 # colour for embeds
+embed_colour = 0xAC88D8 # colour for embeds
 server_build = False

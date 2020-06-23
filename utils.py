@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # This is basically a disaster file of all the utilities i always
 # end up dragging around with me.. and some even more wild ones
 from typing import List, Optional

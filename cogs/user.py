@@ -1,10 +1,11 @@
+# -*- coding: utf-8 -*-
+
 from typing import Optional, Union
 import discord
 from discord.ext import commands, tasks
-from math import sqrt, pow
+from math import sqrt
 from time import time
 from random import randrange
-from collections import defaultdict
 
 import utils
 from Aika import Leaderboard
@@ -77,7 +78,7 @@ class User(commands.Cog):
                 await self.update_cooldown(userID)
 
     async def calculate_xp(self, level: float) -> int:
-        return int(pow(level, 2.0) * 50)
+        return int((level ** 2.0) * 50.0)
 
     async def calculate_level(self, xp: int) -> float:
         return sqrt(xp / 50)
@@ -85,8 +86,7 @@ class User(commands.Cog):
     async def get_rank(self, xp: int) -> int:
         return res['rank'] if (res := self.bot.db.fetch(
             'SELECT (COUNT(*) + 1) rank '
-            'FROM aika_users WHERE xp > %s',
-            [xp]
+            'FROM aika_users WHERE xp > %s', [xp]
         )) else 0
 
     async def user_exists(self, userID: int) -> bool:
@@ -143,17 +143,12 @@ class User(commands.Cog):
                 '**Correct syntax**: `!user (optional: @user)`'
             ]))
 
-        e = discord.Embed(
-            color = self.bot.config.embed_colour
-        )
-
+        e = discord.Embed(colour = self.bot.config.embed_colour)
         target = mentions[0] if mentions else ctx.author
 
         e.set_author(
             name = f'{target.display_name} ({target.name}#{target.discriminator})',
-            icon_url = target.avatar_url
-        )
-
+            icon_url = target.avatar_url)
         e.add_field(
             name = 'ID',
             value = target.id)
@@ -161,7 +156,6 @@ class User(commands.Cog):
         xp = await self.get_xp(target.id)
         lv = await self.calculate_level(xp)
         rank = await self.get_rank(xp)
-
         e.add_field(
             name = 'Activity stats',
             value = f'**[#{rank}]** Lv. {lv:.2f} ({xp:,}xp)'
@@ -169,7 +163,6 @@ class User(commands.Cog):
 
         ordinal = lambda n: f'{n}{"tsnrhtdd"[(n//10%10!=1)*(n%10<4)*n%10::4]}'
         format_date = lambda d: f'{d:%A, %B {ordinal(d.day)} %Y @ %I:%M:%S %p}'
-
         e.add_field(
             name = 'Account creation',
             value = format_date(target.created_at),
@@ -179,9 +172,8 @@ class User(commands.Cog):
             value = format_date(target.joined_at),
             inline = False)
 
-        roles = [r.mention for r in filter(lambda r: r.position != 0, target.roles)]
-
-        if roles:
+        not_everyone = lambda r: r.position != 0
+        if (roles := [r.mention for r in filter(not_everyone, target.roles)]):
             e.add_field(
                 name = 'Roles',
                 value = ', '.join(reversed(roles)),
@@ -199,12 +191,12 @@ class User(commands.Cog):
             return await ctx.send(
                 'Invalid syntax.\n**Correct syntax**: `!lvreq <level>`')
 
-        xp = await self.calculate_xp(level)
+        total_xp = await self.calculate_xp(level)
         current_xp = await self.get_xp(ctx.author.id)
-        pc = (current_xp / xp) * 100.0 if current_xp < xp else 100.0
+        pc = (current_xp / total_xp) * 100.0 if current_xp < total_xp else 100.0
         await ctx.send('\n'.join([
             f'**Level progression to {level:.2f}.**',
-            f'> `{current_xp:,}/{xp:,}xp ({pc:.2f}%)`'
+            f'> `{current_xp:,}/{total_xp:,}xp ({pc:.2f}%)`'
         ]))
 
     @commands.command(aliases = ['deleterboards', 'dlb'])
@@ -238,9 +230,8 @@ class User(commands.Cog):
     async def leaderboard(self, ctx: commands.Context) -> None:
         if not (res := self.bot.db.fetchall(
             'SELECT id, xp FROM aika_users '
-            'WHERE xp > 0 ORDER BY xp DESC LIMIT 10')
-        ): return await ctx.send(
-            'No users existed - now you should! (run this command again)')
+            'WHERE xp > 0 ORDER BY xp DESC LIMIT 10')):
+            return await self.leaderboard(ctx)
 
         leaderboard = Leaderboard([{
             'title': user.name if (
@@ -280,16 +271,11 @@ class User(commands.Cog):
             for member, state in channel.voice_states.items():
                 if state.self_deaf: # Deafened gives no xp
                     continue
-
+s
                 multiplier = 1.0
-
-                if state.self_video:
-                    multiplier *= 2
-                if state.self_stream:
-                    multiplier *= 1.5
-                if state.self_mute:
-                    multiplier /= 2
-
+                if state.self_video: multiplier *= 2
+                if state.self_stream: multiplier *= 1.5
+                if state.self_mute: multiplier /= 2
                 await self.increment_xp(member, multiplier, override = True)
 
 def setup(bot: commands.Bot):

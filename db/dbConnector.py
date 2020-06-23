@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from typing import Tuple, Dict, Optional, Union
 from mysql.connector import errors
 from mysql.connector import pooling

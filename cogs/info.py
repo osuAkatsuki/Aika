@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from typing import Tuple, Dict, Union
 import discord
 from discord.ext import commands
@@ -16,7 +18,9 @@ class Info(commands.Cog):
 
     def add_faq(self, topic: str, title: str, content: str) -> None:
         print(f'{Ansi.GREEN!r}Adding new FAQ topic - {topic}{Ansi.RESET!r}')
-        self.bot.db.execute('INSERT INTO aika_faq (id, topic, title, content) VALUES (NULL, %s, %s, %s)', [topic, title, content])
+        self.bot.db.execute(
+            'INSERT INTO aika_faq (id, topic, title, content) '
+            'VALUES (NULL, %s, %s, %s)', [topic, title, content])
         self.faq = self.load_faq() # suboptimal but so rare who cares?
 
     # TODO: _rm_faq(), although this will be a bit weird with id & topic valid..
@@ -28,13 +32,10 @@ class Info(commands.Cog):
     async def faq(self, ctx: commands.Context) -> None:
         # TODO fix: you can do something like !faq cert 2 (if id for cert was 2) to print a callback twice.
         if len(split := list(dict.fromkeys(ctx.message.content.split(' ')))) not in range(2, 5):
-            if not (res := self.bot.db.fetchall('SELECT topic, title FROM aika_faq')):
-                return await ctx.send('No FAQ callbacks could be fetched from MySQL.')
-
-            leaderboard = Leaderboard([{
-                'title': row['topic'],
-                'value': row['title']
-            } for row in res])
+            if not (res := self.bot.db.fetchall(
+                'SELECT topic title, title value FROM aika_faq')):
+                return await ctx.send(
+                    'No FAQ callbacks could be fetched from MySQL.')
 
             e = discord.Embed(
                 colour = self.bot.config.embed_colour,
@@ -42,7 +43,7 @@ class Info(commands.Cog):
                 description = '\n'.join([
                     f"You'll need to provide an id or topic (accepts multiple delimited by space; max 4).",
                     f'**Syntax**: `!{ctx.invoked_with} <id/topic>`',
-                    repr(leaderboard)
+                    repr(Leaderboard(res))
                 ])
             )
 

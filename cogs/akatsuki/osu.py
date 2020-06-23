@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from typing import Dict, List, Optional, Union
 import discord
 from discord.ext import commands, tasks
@@ -93,7 +95,7 @@ class osu(commands.Cog):
             e = discord.Embed(
                 title = res['sn'],
                 url = f"https://akatsuki.pw/b/{res['bid']}",
-                color = self.bot.config.embed_colour)
+                colour = self.bot.config.embed_colour)
 
             name = res['username']
             if res['tag']: # add clan

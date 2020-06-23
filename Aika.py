@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Union, Final, Any, List, Dict
+from typing import Union, Final, List, Dict
 import discord, asyncio
 from discord.ext import commands, tasks
 from os import chdir, path
@@ -167,7 +167,7 @@ class Aika(commands.Bot):
               user = self.user, userid = self.user.id))
     async def on_error(self, event, args, **kwargs) -> None:
         if event != 'on_message':
-            print(f'err: {event}')
+            print(f'{Ansi.LIGHT_RED!r}ERR{Ansi.RESET!r}: {event}')
 
     async def on_command_error(self, ctx: commands.Context,
                                error: commands.errors.CommandError) -> None:
