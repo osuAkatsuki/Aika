@@ -195,7 +195,9 @@ class User(commands.Cog):
 
         xp = await self.calculate_xp(float(level))
         current_xp = await self.get_xp(ctx.author.id)
-        await ctx.send(f'**XP required: {xp:,}** ({xp - current_xp:,} to go!).')
+        pc = (current_xp / (current_xp + xp)) * 100 # percent there!
+        await ctx.send(
+            f'**XP required: {xp:,}** ({xp - current_xp:,} to go! [{pc.2f}%]).')
 
     @commands.command(aliases = ['deleterboards', 'dlb'])
     @commands.guild_only()
