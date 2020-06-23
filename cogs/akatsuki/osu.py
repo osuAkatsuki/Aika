@@ -97,7 +97,8 @@ class osu(commands.Cog):
 
             e.set_author(
                 name = name,
-                icon_url = f"https://a.akatsuki.pw/{user}")
+                url = f"https://akatsuki.pw/u/{user}?mode={res['play_mode']}&rx={int(rx)}",
+                icon_url = f'https://a.akatsuki.pw/{user}')
 
             # Letter grade
             # This is done.. stragely
