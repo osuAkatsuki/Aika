@@ -121,31 +121,34 @@ class osu(commands.Cog):
             res['ranked'] = utils.status_readable(res['ranked'])
 
             if res['pp']:
-                # Get PP if FC
-                calc = Owoppai()
+                if not res['full_combo']:
+                    # Get PP if FC
+                    calc = Owoppai()
 
-                if res['mode'] == 0: # std
-                    fcAcc = utils.calc_accuracy_std(
-                        n300 = res['n300'],
-                        n100 = res['n100'],
-                        n50 = res['n50'],
-                        nmiss = res['nmiss']) * 100.0
-                else:
-                    fcAcc = utils.calc_accuracy_taiko(
-                        n300 = res['n300'],
-                        n150 = res['n100'], # lol
-                        nmiss = res['nmiss']) * 100.0
+                    if res['mode'] == 0: # std
+                        fcAcc = utils.calc_accuracy_std(
+                            n300 = res['n300'],
+                            n100 = res['n100'],
+                            n50 = res['n50'],
+                            nmiss = res['nmiss']) * 100.0
+                    else:
+                        fcAcc = utils.calc_accuracy_taiko(
+                            n300 = res['n300'],
+                            n150 = res['n100'], # lol
+                            nmiss = res['nmiss']) * 100.0
 
-                calc.configure(
-                    filename = res['bid'],
-                    accuracy = fcAcc,
-                    mode = res['mode'],
-                    mods = res['mods'],
-                )
+                    calc.configure(
+                        filename = res['bid'],
+                        accuracy = fcAcc,
+                        mode = res['mode'],
+                        mods = res['mods'],
+                    )
 
-                ifFc, res['difficulty'] = calc.calculate_pp()
+                    ifFc, res['difficulty'] = calc.calculate_pp()
 
-                res['points'] = f"**{res['pp']:,.2f}pp** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
+                    res['points'] = f"**{res['pp']:,.2f}pp** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
+                else: # we fced, no need to calc if-fc pp
+                    res['points'] = f"**{res['pp']:,.2f}pp**"
             else:
                 res['points'] = f"**{res['score']:,}**"
 
