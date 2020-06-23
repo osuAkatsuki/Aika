@@ -117,43 +117,42 @@ class osu(commands.Cog):
                         res['nmiss']) if res['completed'] != 0 else 'F'
                 ])
 
-
             # Length and ranked status as formatted strings
             res['length'] = utils.seconds_readable(res['hit_length'])
             res['ranked'] = utils.status_readable(res['ranked'])
 
-            if res['pp']:
-                # Get PP if FC
-                # We need to do this even if not on FC,
-                # since we need the SR calculated with mods.
-                calc = Owoppai()
+            # Use oppai to calculate pp if FC,
+            # along with star rating with mods.
+            calc = Owoppai()
 
-                if res['mode'] == 0: # std
-                    fcAcc = utils.calc_accuracy_std(
-                        n300 = res['n300'],
-                        n100 = res['n100'],
-                        n50 = res['n50'],
-                        nmiss = res['nmiss']) * 100.0
-                else:
-                    fcAcc = utils.calc_accuracy_taiko(
-                        n300 = res['n300'],
-                        n150 = res['n100'], # lol
-                        nmiss = res['nmiss']) * 100.0
-
-                calc.configure(
-                    filename = res['bid'],
-                    accuracy = fcAcc,
-                    mode = res['mode'],
-                    mods = res['mods'],
-                )
-
-                ifFc, res['difficulty'] = calc.calculate_pp()
-
-                if not res['full_combo']:
-                    res['points'] = f"**{res['pp']:,.2f}pp** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
-                else: # We fced, no need to show if-fc pp
-                    res['points'] = f"**{res['pp']:,.2f}pp**"
+            if res['mode'] == 0: # std
+                fcAcc = utils.calc_accuracy_std(
+                    n300 = res['n300'],
+                    n100 = res['n100'],
+                    n50 = res['n50'],
+                    nmiss = res['nmiss']) * 100.0
             else:
+                fcAcc = utils.calc_accuracy_taiko(
+                    n300 = res['n300'],
+                    n150 = res['n100'], # lol
+                    nmiss = res['nmiss']) * 100.0
+
+            calc.configure(
+                filename = res['bid'],
+                accuracy = fcAcc,
+                mode = res['mode'],
+                mods = res['mods'],
+            )
+
+            ifFc, res['difficulty'] = calc.calculate_pp()
+
+            if res['pp']:
+                if res['full_combo']: # pp == ifFc
+                    res['points'] = f"**{res['pp']:,.2f}pp**"
+                else: # Send ifFc PP as well
+                    res['points'] = f"**{res['pp']:,.2f}pp** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
+            else:
+                res['difficulty'] = res[f"difficulty_{utils.gamemode_db(res['play_mode'])}"]
                 res['points'] = f"**{res['score']:,}**"
 
             # Mods string
