@@ -75,38 +75,56 @@ class osu(commands.Cog):
 
                 # Laziness
                 'b.difficulty_std, b.difficulty_taiko, '
-                'b.difficulty_ctb, b.difficulty_mania '
+                'b.difficulty_ctb, b.difficulty_mania, '
+
+                'u.username, c.tag '
 
                 f'FROM {table} s '
                 'LEFT JOIN beatmaps b USING(beatmap_md5) '
+                'LEFT JOIN users u ON u.id = s.userid '
+                'LEFT JOIN clans c ON c.id = u.clan_id '
                 'WHERE s.userid = %s '
                 'ORDER BY s.time DESC LIMIT 1',
-                [user['id']])
+                [user])
             ): return await ctx.send('The user has no scores!.')
 
             e = discord.Embed(
                 color = self.bot.config.embed_colour)
-            e.set_author(
-                name = user['name'],
-                icon_url = f"https://a.akatsuki.pw/{user['id']}")
 
+            name = res['username']
+            if res['tag']: # add clan
+                name = f"{res['tag']} {name}"
+
+            e.set_author(
+                name = name,
+                icon_url = f"https://a.akatsuki.pw/{user}")
+
+            # Letter grade
+            res['grade'] = utils.accuracy_grade(
+                res['play_mode'], res['acc'], res['mods'],
+                res['300_count'], res['100_count'], res['50_count'],
+                res['misses_count'])
+
+            # Mods string
             if res['mods']:
                 res['mods'] = f"+{utils.mods_readable(res['mods'])}"
             else:
                 res['mods'] = 'NM'
 
+            # Difficulty for specific gamemode
             res['difficulty'] = res[f"difficulty_{utils.gamemode_db(res['play_mode'])}"]
 
+            # Length and ranked status as formatted strings
             res['length'] = utils.seconds_readable(res['hit_length'])
             res['ranked'] = utils.status_readable(res['ranked'])
 
             embeds = {
                 'Score information': '\n'.join([
-                    '**{pp:,.2f}pp** ({acc:.2f}% {s_combo}/{b_combo}x) {mods}',
-                    '{{ {300_count}, {100_count}, {50_count}, {misses_count} }}']),
+                    '**{pp:,.2f}pp ({acc:.2f}% {s_combo}/{b_combo}x) {mods}**',
+                    '{grade} {{ {300_count}x300, {100_count}x100, {50_count}x50, {misses_count}xM }}']),
                 'Beatmap information': '\n'.join([
                     '**__[{sn}](https://akatsuki.pw/b/{bid})__ (__[Download](https://akatsuki.pw/d/{bsid})__)**',
-                    '{ranked} ⭐ {difficulty:.2f} | 🎵 {bpm} {length}',
+                    '**{ranked} \⭐ {difficulty:.2f} | {length} @ \🎵 {bpm}**',
                     '**AR** {ar} **OD** {od}'])
             }
 
@@ -124,7 +142,7 @@ class osu(commands.Cog):
                 f'Score submissed {played_at} ago.'
             ]))
 
-            e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
+            e.set_thumbnail(url = f"https://a.akatsuki.pw/{user}")
             e.set_image(url = f"https://assets.ppy.sh/beatmaps/{res['bsid']}/covers/cover.jpg")
             await ctx.send(embed = e)
 

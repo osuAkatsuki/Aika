@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from enum import IntEnum
 
 class Mods(IntEnum):
@@ -109,3 +109,60 @@ def status_readable(s: int) -> str:
         2: 'Ranked',
         0: 'Unranked'
     }[s]
+
+def accuracy_grade(
+    mode: int, acc: float, mods: int,
+    count_300: Optional[int] = None, count_100: Optional[int] = None,
+    count_50: Optional[int] = None, count_miss: Optional[int] = None
+) -> str:
+    total = sum([count_300, count_100, count_50, count_miss])
+    hdfl = mods & (Mods.HIDDEN | Mods.FLASHLIGHT)
+    ss = lambda: 'XH' if hdfl else 'X'
+    s = lambda: 'SH' if hdfl else 'S'
+
+    if mode == 0: # osu!
+        if acc == 100.00:
+            return ss()
+        elif count_300 / total > 0.90 \
+         and count_50 / total < 0.1 \
+         and count_miss == 0:
+            return s()
+        elif (count_300 / total > 0.80 and count_miss == 0) \
+          or (count_300 / total > 0.90):
+            return 'A'
+        elif (count_300 / total > 0.70 and count_miss == 0) \
+          or (count_300 / total > 0.80):
+            return 'B'
+        elif count_300 / total > 0.60:
+            return 'C'
+        else:
+            return 'D'
+    elif mode == 1: # osu!taiko
+        return 'A' # TODO: taiko
+    elif mode == 2: # osu!catch
+        if acc == 100.0:
+            return ss()
+        elif 98.01 <= acc <= 99.99:
+            return s()
+        elif 94.01 <= acc <= 98.00:
+            return 'A'
+        elif 90.01 <= acc <= 94.00:
+            return 'B'
+        elif 85.01 <= acc <= 90.00:
+            return 'C'
+        else:
+            return 'D'
+    elif mode == 3: # osu!mania
+        if acc == 100.00:
+            return ss()
+        elif acc > 95.00:
+            return s()
+        elif acc > 90.00:
+            return 'A'
+        elif acc > 80.00:
+            return 'B'
+        elif acc > 70.00:
+            return 'C'
+        else:
+            return 'D'
+    #else: # um

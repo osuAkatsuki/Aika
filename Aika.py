@@ -129,7 +129,8 @@ class Aika(commands.Bot):
         if filtered:
             return await message.delete()
 
-        await self.process_commands(message)
+        if self.config.server_build or message.author.id == self.owner_id:
+            await self.process_commands(message)
 
     async def on_message_edit(self, before: discord.Message,
                               after: discord.Message) -> None:
@@ -148,7 +149,8 @@ class Aika(commands.Bot):
         if filtered:
             return await after.delete()
 
-        await self.process_commands(after)
+        if self.config.server_build or after.author.id == self.owner_id:
+            await self.process_commands(after)
 
     async def on_member_ban(self, guild: discord.Guild,
                             user: Union[discord.Member, discord.User]) -> None:
@@ -237,11 +239,9 @@ class Aika(commands.Bot):
         counts = [len(self.users)]
 
         async with aiohttp.ClientSession() as session:
-            html = await self.fetch(
+            if (html := await self.fetch(
                 session, 'http://144.217.254.156:5001/api/v1/onlineUsers')
-
-            if html:
-                counts.append(loads(html)['result'])
+            ): counts.append(loads(html)['result'])
 
         msg = [f'with {" / ".join(str(i) for i in counts)} users!']
         if is_420: msg.append('& the joint')
