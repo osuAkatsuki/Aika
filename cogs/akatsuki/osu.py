@@ -146,7 +146,7 @@ class osu(commands.Cog):
             played_at = utils.seconds_readable_full(int(time() - res['time']))
             e.set_footer(text = ' | '.join([
                 f'Aika v{self.bot.config.version}',
-                f'Score submissed {played_at} ago.'
+                f'Score submitted {played_at} ago.'
             ]))
 
             e.set_thumbnail(url = f"https://a.akatsuki.pw/{user}")
