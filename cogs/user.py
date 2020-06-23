@@ -6,7 +6,9 @@ from time import time
 from random import randrange
 from collections import defaultdict
 
+import utils
 from Aika import Leaderboard
+
 class User(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
