@@ -68,6 +68,9 @@ class User(commands.Cog):
             if not override:
                 await self.update_cooldown(userID)
 
+    async def calculate_xp(self, level: float) -> int:
+        return int(pow(level, 2.0) * 50)
+
     async def calculate_level(self, xp: int) -> float:
         return sqrt(xp / 50)
 
@@ -184,11 +187,13 @@ class User(commands.Cog):
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
     async def levelreq(self, ctx: commands.Context, *, level) -> None:
-        if not level.isdecimal():
+        if not utils.isfloat(level):
             return await ctx.send(
                 'Invalid syntax.\n**Correct syntax**: `!lvreq <level>`')
 
-        await ctx.send(f'**XP Required**: {int(pow(int(level), 2) * 50)}')
+        xp = await self.calculate_xp(float(level))
+        current_xp = await self.get_xp(ctx.author.id)
+        await ctx.send(f'**XP required: {xp:,}** ({xp - current_xp:,} to go!).')
 
     @commands.command(aliases = ['deleterboards', 'dlb'])
     @commands.guild_only()

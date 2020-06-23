@@ -49,5 +49,5 @@ faq_replacements = {
     'key': 'val'
 }
 
-embed_color = 0x0E1E30 # colour for embeds
+embed_color = 0xAC88D8 # colour for embeds
 server_build = False

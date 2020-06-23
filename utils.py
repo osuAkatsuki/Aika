@@ -187,3 +187,6 @@ def accuracy_grade(
             return 'C'
         else:
             return 'D'
+
+def is_float(s: str) -> bool: # obviously not made for safety
+    return s.replace('-', '', 1).replace('.', '', 1).isdigit()
