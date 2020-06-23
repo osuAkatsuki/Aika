@@ -166,8 +166,7 @@ class osu(commands.Cog):
             try: # Send PM first, since if we fail we need to warn user.
                 await ctx.author.send('\n'.join([
                     'Please paste the following command into #osu (or dm with Aika) ingame.',
-                    f'> `!vdiscord {ctx.author.id << 2}`'
-                    #f'> `!vdiscord {((ctx.author.id << 31) | userid) << 2}`' # soon
+                    f'> `!vdiscord {(~(ctx.author.id << 0o14) | 0x993) >> 1}`'
                 ]))
             except discord.Forbidden:
                 return await ctx.send('\n'.join([
