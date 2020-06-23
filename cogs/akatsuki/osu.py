@@ -100,10 +100,15 @@ class osu(commands.Cog):
                 icon_url = f"https://a.akatsuki.pw/{user}")
 
             # Letter grade
-            res['grade'] = utils.accuracy_grade(
-                res['play_mode'], res['acc'], res['mods'],
-                res['300_count'], res['100_count'], res['50_count'],
-                res['misses_count'])
+            # This is done.. stragely
+            # TODO: don't do strangely?
+            res['grade'] = self.bot.get_emoji(
+                self.bot.config.akatsuki['grade_emojis'][
+                    utils.accuracy_grade(
+                        res['play_mode'], res['acc'], res['mods'],
+                        res['300_count'], res['100_count'], res['50_count'],
+                        res['misses_count']) if res['completed'] != 0 else 'F'
+                ])
 
             # Mods string
             if res['mods']:
@@ -118,9 +123,11 @@ class osu(commands.Cog):
             res['length'] = utils.seconds_readable(res['hit_length'])
             res['ranked'] = utils.status_readable(res['ranked'])
 
+            res['points'] = f"{res['pp']:,.2f}pp" if res['pp'] else f"{res['score']:,}"
+
             embeds = {
                 'Score information': '\n'.join([
-                    '**{pp:,.2f}pp ({acc:.2f}% {s_combo}/{b_combo}x) {mods}**',
+                    '**{points} ({acc:.2f}% {s_combo}/{b_combo}x) {mods}**',
                     '{grade} {{ {300_count}x300, {100_count}x100, {50_count}x50, {misses_count}xM }}']),
                 'Beatmap information': '\n'.join([
                     '**__[{sn}](https://akatsuki.pw/b/{bid})__ (__[Download](https://akatsuki.pw/d/{bsid})__)**',
