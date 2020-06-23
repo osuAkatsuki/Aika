@@ -50,3 +50,4 @@ faq_replacements = {
 }
 
 embed_color = 0x0E1E30 # colour for embeds
+server_build = False

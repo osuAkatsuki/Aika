@@ -1,18 +1,132 @@
+from typing import Dict, List, Optional, Union
 import discord
 from discord.ext import commands, tasks
 
 from datetime import datetime as dt, timezone as tz
+from time import time
 
 from collections import defaultdict
+
 from Aika import Ansi
+import utils
 
 class osu(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.manage_roles.start()
+        if self.bot.config.server_build:
+            # We only want this to run when
+            # we're on the Akatsuki server.
+            self.manage_roles.start()
 
     def cog_unload(self):
-        self.manage_roles.cancel()
+        if self.bot.config.server_build:
+            self.manage_roles.cancel()
+
+    async def get_osuID(self, discordID: int) -> Optional[int]:
+        return res['osu_id'] if (res := self.bot.db.fetch(
+            'SELECT osu_id FROM aika_users WHERE id = %s',
+            [discordID]
+        )) else None
+
+    async def get_osuID_from_name(self, username: str) -> Optional[int]:
+        return res['id'] if (res := self.bot.db.fetch(
+            'SELECT id FROM users WHERE username = %s',
+            [username]
+        )) else None
+
+    @commands.command()
+    @commands.guild_only()
+    async def recent(self, ctx: commands.Context) -> None:
+        msg = ctx.message.content.split(' ')[1:] # Remove command from content
+        if (rx := '-rx' in msg): # Check for and remove -rx from command
+            msg.remove('-rx')
+
+        if not msg: # Nothing specified, check for account link
+            if not all(users := [await self.get_osuID(ctx.author.id)]):
+                return await ctx.send(
+                    'You must first link your Akatsuki account with **!linkosu**!')
+        else: # They sent the user, either by mention or akatsuki username.
+            if ctx.message.mentions:
+                if not all(users := [await self.get_osuID(i.id) for i in ctx.message.mentions]):
+                    return await ctx.send(
+                        "At least one of those people don't have their Akatsuki accoutnt linked!")
+            else: # Akatsuki username
+                # They can only specify one name here due to limitations with spaces.
+                # (not going to enforce underscores only).
+                if not all(users := [await self.get_osuID_from_name(' '.join(msg))]):
+                    return await ctx.send(
+                        "We couldn't find a user by that username on Akatsuki.")
+
+        if len(users) > 3:
+            return await ctx.send(
+                'No more than 3 users may be requested at a time!')
+
+        for user in users:
+            table = 'scores_relax' if rx else 'scores'
+            if not (res := self.bot.db.fetch(
+                # Get all information we need for the embed.
+                'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo, '
+                's.full_combo, s.mods, s.300_count, s.100_count, s.50_count, '
+                's.misses_count, s.time, s.play_mode, s.completed, '
+
+                'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, '
+                'b.ar, b.od, b.max_combo as b_combo, b.hit_length, b.ranked, '
+                'b.bpm, b.playcount, b.passcount, '
+
+                # Laziness
+                'b.difficulty_std, b.difficulty_taiko, '
+                'b.difficulty_ctb, b.difficulty_mania '
+
+                f'FROM {table} s '
+                'LEFT JOIN beatmaps b USING(beatmap_md5) '
+                'WHERE s.userid = %s '
+                'ORDER BY s.time DESC LIMIT 1',
+                [user['id']])
+            ): return await ctx.send('The user has no scores!.')
+
+            e = discord.Embed(
+                color = self.bot.config.embed_colour)
+            e.set_author(
+                name = user['name'],
+                icon_url = f"https://a.akatsuki.pw/{user['id']}")
+
+            if res['mods']:
+                res['mods'] = f"+{utils.mods_readable(res['mods'])}"
+            else:
+                res['mods'] = 'NM'
+
+            res['difficulty'] = res[f"difficulty_{utils.gamemode_db(res['play_mode'])}"]
+
+            res['length'] = utils.seconds_readable(res['hit_length'])
+            res['ranked'] = utils.status_readable(res['ranked'])
+
+            embeds = {
+                'Score information': '\n'.join([
+                    '**{pp:,.2f}pp** ({acc:.2f}% {s_combo}/{b_combo}x) {mods}',
+                    '{{ {300_count}, {100_count}, {50_count}, {misses_count} }}']),
+                'Beatmap information': '\n'.join([
+                    '**__[{sn}](https://akatsuki.pw/b/{bid})__ (__[Download](https://akatsuki.pw/d/{bsid})__)**',
+                    '{ranked} ⭐ {difficulty:.2f} | 🎵 {bpm} {length}',
+                    '**AR** {ar} **OD** {od}'])
+            }
+
+            for k, v in embeds.items():
+                e.add_field(
+                    name = k,
+                    value = v.format(**res),
+                    inline = False
+                )
+
+            # format time played for the footer
+            played_at = utils.seconds_readable_full(int(time() - res['time']))
+            e.set_footer(text = ' | '.join([
+                f'Aika v{self.bot.config.version}',
+                f'Score submissed {played_at} ago.'
+            ]))
+
+            e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
+            e.set_image(url = f"https://assets.ppy.sh/beatmaps/{res['bsid']}/covers/cover.jpg")
+            await ctx.send(embed = e)
 
     @commands.command()
     @commands.guild_only()

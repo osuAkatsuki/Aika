@@ -224,7 +224,7 @@ class Aika(commands.Bot):
     @staticmethod
     async def fetch(session, url):
         async with session.get(url) as resp:
-            return await resp.text()
+            return await resp.text() if resp.status == 200 else None
 
     @tasks.loop(seconds = 15)
     async def bg_loop(self) -> None:
