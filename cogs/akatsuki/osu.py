@@ -123,29 +123,27 @@ class osu(commands.Cog):
             if res['pp']:
                 # Get PP if FC
                 calc = Owoppai()
+
                 if res['mode'] == 0: # std
-                    calc.configure(
-                        filename = res['bid'],
-                        mode = 0,
-                        mods = res['mods'],
+                    fcAcc = utils.calc_accuracy_std(
                         n300 = res['n300'],
                         n100 = res['n100'],
                         n50 = res['n50'],
-                        nmiss = 0 # Calc for FC
-                    )
-                    calc.configure(**res)
-                else: # taiko
-                    calc.configure(
-                        filename = res['bid'],
-                        mode = 1,
-                        mods = res['mods'],
+                        nmiss = res['nmiss']) * 100.0
+                else:
+                    fcAcc = utils.calc_accuracy_taiko(
                         n300 = res['n300'],
-                        n150 = res['n100'],
-                        nmiss = 0 # Calc for FC
-                    )
+                        n150 = res['n100'], # lol
+                        nmiss = res['nmiss']) * 100.0
+
+                calc.configure(
+                    filename = res['bid'],
+                    accuracy = fcAcc,
+                    mode = res['mode'],
+                    mods = res['mods'],
+                )
 
                 ifFc, res['difficulty'] = calc.calculate_pp()
-                fcAcc = (calc.accuracy * 100.0)
 
                 res['points'] = f"**{res['pp']:,.2f}pp** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
             else:

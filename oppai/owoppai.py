@@ -32,26 +32,13 @@ class Owoppai:
 
     def configure(self, **kwargs) -> None:
         if 'filename' in kwargs:
-            self.open_map(kwargs.pop('filename'))
+            self.open_map(kwargs.get('filename'))
 
-        self.gamemode = kwargs.pop('mode', 0)
-        self.mods = kwargs.pop('mods', 0)
-        self.combo = kwargs.pop('combo', 0)
-
-        acc_args = { # std
-            'n300', 'n100', 'n50', 'nmiss'} \
-        if self.gamemode == 0 else { # taiko
-            'n300', 'n150', 'nmiss'}
-
-        if all(x in kwargs for x in acc_args):
-            if self.gamemode == 0:
-                self.accuracy = utils.calc_accuracy_std(**kwargs)
-            else:
-                self.accuracy = utils.calc_accuracy_taiko(**kwargs)
-        else:
-            self.accuracy = kwargs.get('accuracy', -1.0)
-
-        self.misses = kwargs.get('misses', 0)
+        self.mods = kwargs.get('mods', 0)
+        self.combo = kwargs.get('combo', 0)
+        self.misses = kwargs.get('nmiss', 0)
+        self.gamemode = kwargs.get('mode', 0)
+        self.accuracy = kwargs.get('accuracy', -1.0)
 
     def calculate_pp(self) -> Union[Tuple[float], float]:
         # This function can either return a list of
