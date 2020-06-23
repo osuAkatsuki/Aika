@@ -17,29 +17,31 @@ from enum import IntEnum
 from db import dbConnector
 from mysql.connector import errorcode, Error as SQLError
 
-def remove_non_ascii(string: str) -> str:
-    return string.encode('ascii', 'ignore').decode('ascii')
+def asciify(s: str) -> str:
+    return s.encode('ascii', 'ignore').decode('ascii')
 
-def truncate(string: str, length: int) -> str:
-    return string[:length] + (string[length:] and '..')
+def truncate(s: str, max_len: int) -> str:
+    return f'{s[:max_len - 2]}..' if len(s) > max_len else s
 
+def leaderboard_safe(s: str) -> str
 class Leaderboard:
     def __init__(self, listings: List[Dict[str, Union[int, str]]]) -> None:
         self.listings = [{
-            'title': remove_non_ascii(truncate(i['title'], 12)),
+            'title': asciify(truncate(i['title'], 12)),
             'value': i['value']
         } for i in listings]
 
     def __repr__(self) -> str:
-        len_id: int = len(str(len(self.listings))) + 1
-        len_title: int = min(14, max(
-            len(i['title']) for i in self.listings))
+        len_id = len(str(len(self.listings))) + 1
+        len_title = min(14, max(len(i['title']) for i in self.listings))
 
-        leaderboard = '\n'.join(
-            f"{f'{idx + 1}.':0>{len_id}} {i['title']:^{len_title}} - {i['value']}"
-            for idx, i in enumerate(self.listings))
-
-        return f'```md\n{leaderboard}```'
+        return '```md\n{lb}```'.format(
+            lb = '\n'.join(
+                '{id:0>{s_id}} {title:^{s_title}} - {value}'.format(
+                    id = f'{idx + 1}.', s_id = len_id, s_title = len_title,
+                    **i # <-- the real params
+                ) for idx, i in enumerate(self.listings))
+        )
 
 class Ansi(IntEnum):
     # Default colours
@@ -161,8 +163,9 @@ class Aika(commands.Bot):
         if not hasattr(self, 'uptime'):
             self.uptime = time()
 
-        print(f'{Ansi.GREEN!r}Ready{Ansi.RESET!r}: {self.user} ({self.user.id})')
-
+        print('{col}Ready{reset}: {user} ({userid})'.format(
+              col = repr(Ansi.GREEN), reset = repr(Ansi.RESET),
+              user = self.user, userid = self.user.id))
     async def on_error(self, event, args, **kwargs) -> None:
         if event != 'on_message':
             print(f'err: {event}')
@@ -194,7 +197,9 @@ class Aika(commands.Bot):
 
         elif isinstance(error, commands.CommandOnCooldown):
             return await ctx.send(
-                f'{ctx.author.mention} that command is still on cooldown ({error.retry_after:.1f}s).')
+                '{mention} that command is still on cooldown ({retry:.1f}s).'.format(
+                    mention = ctx.author.mention, retry = error.retry_after)
+            )
 
         elif isinstance(error, commands.BotMissingPermissions):
             return await ctx.send(

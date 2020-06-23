@@ -54,8 +54,12 @@ class osu(commands.Cog):
                 # They can only specify one name here due to limitations with spaces.
                 # (not going to enforce underscores only).
                 if not all(users := [await self.get_osuID_from_name(' '.join(msg))]):
-                    return await ctx.send(
-                        "We couldn't find a user by that username on Akatsuki.")
+                    ret = ["We couldn't find a user by that username on Akatsuki."]
+                    if len(msg) > 1: ret.append( # Incase they're trying to..
+                        'Please note that while using an Akatsuki username '
+                        'as a paramter, only one user can be specified at a time.'
+                    )
+                    return await ctx.send('\n'.join(ret))
 
         if len(users) > 3:
             return await ctx.send(
@@ -158,16 +162,12 @@ class osu(commands.Cog):
     @commands.command()
     @commands.guild_only()
     async def linkosu(self, ctx: commands.Context) -> None:
-        res = self.bot.db.fetch(
-            'SELECT osu_id FROM aika_users WHERE id = %s',
-            [ctx.author.id]
-        )
-
-        if not (res and res['osu_id']):
+        if not (userid := await self.get_osuID(ctx.author.id)):
             try: # Send PM first, since if we fail we need to warn user.
                 await ctx.author.send('\n'.join([
                     'Please paste the following command into #osu (or dm with Aika) ingame.',
                     f'> `!vdiscord {ctx.author.id << 2}`'
+                    #f'> `!vdiscord {((ctx.author.id << 31) | userid) << 2}`' # soon
                 ]))
             except discord.Forbidden:
                 return await ctx.send('\n'.join([
@@ -191,11 +191,11 @@ class osu(commands.Cog):
     @commands.command(hidden = True)
     @commands.guild_only()
     async def next_roleupdate(self, ctx: commands.Context) -> None:
-        t = (self.manage_roles.next_iteration - dt.now(tz.utc)).total_seconds()
-        minutes = int(t // 60)
-        seconds = int(t % 60)
-        await ctx.send(
-            f'Next iteration in {minutes}:{seconds:02d}.')
+        if not (next_iteration := self.manage_roles.next_iteration):
+            return await ctx.send('Role updates are currently disabled.')
+
+        t = int((next_iteration - dt.now(tz.utc)).total_seconds())
+        await ctx.send(f'Next iteration in {t // 60}:{t % 60:02d}.')
 
     @tasks.loop(minutes = 15)
     async def manage_roles(self) -> None:
