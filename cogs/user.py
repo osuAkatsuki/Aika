@@ -188,7 +188,7 @@ class User(commands.Cog):
             return await ctx.send(
                 'Invalid syntax.\n**Correct syntax**: `!lvreq <level>`')
 
-        await ctx.send(f'**XP Required**: {pow(1.5, int(level)):.2f}')
+        await ctx.send(f'**XP Required**: {int(pow(level, 2) * 50))}')
 
     @commands.command(aliases = ['deleterboards', 'dlb'])
     @commands.guild_only()

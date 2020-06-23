@@ -71,6 +71,4 @@ class Owoppai:
         if any(i not in output for i in important) or output['code'] != 200:
             raise Exception('Error while calculating PP')
 
-        pp = output['pp']
-        stars = output['stars']
-        return pp, stars # TODO: test output type? is this a tuple?
+        return output['pp'], output['stars']
