@@ -9,6 +9,7 @@ from collections import defaultdict
 
 from Aika import Ansi
 import utils
+from oppai.owoppai import Owoppai
 
 class osu(commands.Cog):
     def __init__(self, bot):
@@ -70,16 +71,13 @@ class osu(commands.Cog):
             if not (res := self.bot.db.fetch(
                 # Get all information we need for the embed.
                 'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo, '
-                's.full_combo, s.mods, s.300_count, s.100_count, s.50_count, '
-                's.misses_count, s.time, s.play_mode, s.completed, '
+                's.full_combo, s.mods, s.300_count n300, s.100_count n100, '
+                's.50_count n50, s.misses_count nmiss, s.time, s.completed, '
+                's.play_mode mode, '
 
                 'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, '
                 'b.ar, b.od, b.max_combo as b_combo, b.hit_length, b.ranked, '
                 'b.bpm, b.playcount, b.passcount, '
-
-                # Laziness
-                'b.difficulty_std, b.difficulty_taiko, '
-                'b.difficulty_ctb, b.difficulty_mania, '
 
                 'u.username, c.tag '
 
@@ -103,7 +101,7 @@ class osu(commands.Cog):
 
             e.set_author(
                 name = name,
-                url = f"https://akatsuki.pw/u/{user}?mode={res['play_mode']}&rx={int(rx)}",
+                url = f"https://akatsuki.pw/u/{user}?mode={res['mode']}&rx={int(rx)}",
                 icon_url = f'https://a.akatsuki.pw/{user}')
 
             # Letter grade
@@ -112,10 +110,46 @@ class osu(commands.Cog):
             res['grade'] = self.bot.get_emoji(
                 self.bot.config.akatsuki['grade_emojis'][
                     utils.accuracy_grade(
-                        res['play_mode'], res['acc'], res['mods'],
-                        res['300_count'], res['100_count'], res['50_count'],
-                        res['misses_count']) if res['completed'] != 0 else 'F'
+                        res['mode'], res['acc'], res['mods'],
+                        res['n300'], res['n100'], res['n50'],
+                        res['nmiss']) if res['completed'] != 0 else 'F'
                 ])
+
+
+            # Length and ranked status as formatted strings
+            res['length'] = utils.seconds_readable(res['hit_length'])
+            res['ranked'] = utils.status_readable(res['ranked'])
+
+            if res['pp']:
+                # Get PP if FC
+                calc = Owoppai()
+                if res['mode'] == 0: # std
+                    calc.configure(
+                        filename = res['bid'],
+                        mode = 0,
+                        mods = res['mods'],
+                        n300 = res['n300'],
+                        n100 = res['n100'],
+                        n50 = res['n50'],
+                        nmiss = 0 # Calc for FC
+                    )
+                    calc.configure(**res)
+                else: # taiko
+                    calc.configure(
+                        filename = res['bid'],
+                        mode = 1,
+                        mods = res['mods'],
+                        n300 = res['n300'],
+                        n150 = res['n100'],
+                        nmiss = 0 # Calc for FC
+                    )
+
+                ifFc, res['difficulty'] = calc.calculate_pp()
+                fcAcc = (calc.accuracy * 100.0)
+
+                res['points'] = f"**{res['pp']:,.2f}pp** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
+            else:
+                res['points'] = f"**{res['score']:,}**"
 
             # Mods string
             if res['mods']:
@@ -123,19 +157,11 @@ class osu(commands.Cog):
             else:
                 res['mods'] = 'NM'
 
-            # Difficulty for specific gamemode
-            res['difficulty'] = res[f"difficulty_{utils.gamemode_db(res['play_mode'])}"]
-
-            # Length and ranked status as formatted strings
-            res['length'] = utils.seconds_readable(res['hit_length'])
-            res['ranked'] = utils.status_readable(res['ranked'])
-
-            res['points'] = f"{res['pp']:,.2f}pp" if res['pp'] else f"{res['score']:,}"
-
             embeds = {
                 'Score information': '\n'.join([
-                    '**{points} ({acc:.2f}% {s_combo}/{b_combo}x) {mods}**',
-                    '{grade} {{ {300_count}x300, {100_count}x100, {50_count}x50, {misses_count}xM }}']),
+                    '{points}',
+                    '**{acc:.2f}% {mods}** {s_combo}/{b_combo}x ',
+                    '{grade} {{ {n300}x300, {n100}x100, {n50}x50, {nmiss}xM }}']),
                 'Beatmap information': '\n'.join([
                     '**{ranked} \⭐ {difficulty:.2f} | {length} @ \🎵 {bpm}**',
                     '**AR** {ar} **OD** {od} **[__[Download](https://akatsuki.pw/d/{bsid})__]**'])

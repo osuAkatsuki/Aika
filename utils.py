@@ -110,11 +110,33 @@ def status_readable(s: int) -> str:
         0: 'Unranked'
     }[s]
 
+def calc_accuracy_std(
+    n300: int, n100: int,
+    n50: int, nmiss: int) -> float:
+    if not (total := sum((n300, n100, n50, nmiss))):
+        return 0.00
+
+    return sum((
+        n50 * 50.0,
+        n100 * 100.0,
+        n300 * 300.0
+        )) / (total * 300)
+
+def calc_accuracy_taiko(
+    n300: int, n150: int,
+    nmiss: int) -> float:
+    if not (total := sum((n300, n150, nmiss))):
+        return 0.00
+
+    return sum((
+        n150 * 150.0,
+        n300 * 300.0
+    )) / (total * 300.0)
+
 def accuracy_grade(
     mode: int, acc: float, mods: int,
     count_300: Optional[int] = None, count_100: Optional[int] = None,
-    count_50: Optional[int] = None, count_miss: Optional[int] = None
-) -> str:
+    count_50: Optional[int] = None, count_miss: Optional[int] = None) -> str:
     total = sum([count_300, count_100, count_50, count_miss])
     hdfl = mods & (Mods.HIDDEN | Mods.FLASHLIGHT)
     ss = lambda: 'XH' if hdfl else 'X'
@@ -165,4 +187,3 @@ def accuracy_grade(
             return 'C'
         else:
             return 'D'
-    #else: # um
