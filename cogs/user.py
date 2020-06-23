@@ -1,7 +1,7 @@
+from typing import Optional, Union
 import discord
 from discord.ext import commands, tasks
 from math import sqrt, pow
-from typing import Optional
 from time import time
 from random import randrange
 from collections import defaultdict
@@ -12,6 +12,7 @@ from Aika import Leaderboard
 class User(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.chatxp_cache = {}
         self.voice_xp.start()
 
     def cog_unload(self):
@@ -34,20 +35,25 @@ class User(commands.Cog):
                 [userID])
             ) else 0
 
-    async def blocked_until(self, userID: int) -> bool:
-        return res['cd'] if (
-            res := self.bot.db.fetch(
+    # We never want our XP to be inaccurate, so we only use
+    # a cache-like system for reading, and save to DB every write.
+    async def blocked_until(self, userID: int) -> Union[int, bool]:
+        if not (ret := self.chatxp_cache.get(userID)):
+            return ret['cd'] if (ret := self.bot.db.fetch(
                 'SELECT xp_cooldown AS cd FROM aika_users WHERE id = %s',
-                [userID]) # return true so we start the user off
-            ) else True   # if they're new and don't have an acc
+                [userID] # return true so we don't start the user off
+            )) else True # if they're new and don't have an account.
+        return ret
 
     async def can_collect_xp(self, userID) -> bool:
         return (await self.blocked_until(userID) - time()) <= 0
 
-    async def update_cooldown(self, userID: int, time: int = 60) -> None:
+    async def update_cooldown(self, userID: int, seconds: int = 60) -> None:
+        t = int(time() + seconds)
+        self.chatxp_cache[userID] = t
         self.bot.db.execute(
-            f'UPDATE aika_users SET xp_cooldown = UNIX_TIMESTAMP() + {time} '
-            'WHERE id = %s', [userID])
+            'UPDATE aika_users SET xp_cooldown = %s '
+            'WHERE id = %s', [t, userID])
 
     async def log_deleted_message(self, userID: int, count: int = 1) -> None:
         if not await self.user_exists(userID):
@@ -195,7 +201,7 @@ class User(commands.Cog):
 
         xp = await self.calculate_xp(level)
         current_xp = await self.get_xp(ctx.author.id)
-        pc = (current_xp / (current_xp + xp)) * 100 # percent there!
+        pc = (current_xp / xp) * 100.0 if current_xp < xp else 100.0
         await ctx.send('\n'.join([
             f'**Level progression to {level:.2f}.**',
             f'> `{current_xp:,}/{xp:,}xp ({pc:.2f}%)`'
