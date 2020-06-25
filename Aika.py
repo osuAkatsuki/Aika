@@ -16,17 +16,12 @@ from enum import IntEnum
 
 from db import dbConnector
 from mysql.connector import errorcode, Error as SQLError
-
-def asciify(s: str) -> str:
-    return s.encode('ascii', 'ignore').decode('ascii')
-
-def truncate(s: str, max_len: int) -> str:
-    return f'{s[:max_len - 2]}..' if len(s) > max_len else s
+import utils
 
 class Leaderboard:
     def __init__(self, listings: List[Dict[str, Union[int, str]]]) -> None:
         self.listings = [{
-            'title': asciify(truncate(i['title'], 12)),
+            'title': utils.asciify(utils.truncate(i['title'], 12)),
             'value': i['value']
         } for i in listings]
 

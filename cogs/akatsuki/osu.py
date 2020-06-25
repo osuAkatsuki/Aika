@@ -6,12 +6,13 @@ from discord.ext import commands, tasks
 
 from datetime import datetime as dt, timezone as tz
 from time import time
+from re import match
 
 from collections import defaultdict
 
 from Aika import Ansi
-import utils
 from oppai.owoppai import Owoppai
+import utils
 
 class osu(commands.Cog):
     def __init__(self, bot):
@@ -25,38 +26,52 @@ class osu(commands.Cog):
         if self.bot.config.server_build:
             self.manage_roles.cancel()
 
-    async def get_osuID(self, discordID: int) -> Optional[int]:
-        return res['osu_id'] if (res := self.bot.db.fetch(
-            'SELECT osu_id FROM aika_users WHERE id = %s',
+    async def get_osu(self, discordID: int) -> Optional[int]:
+        return res if (res := self.bot.db.fetch(
+            'SELECT au.osu_id id, u.username name FROM aika_users au '
+            'LEFT JOIN users u ON u.id = au.osu_id WHERE au.id = %s',
             [discordID]
         )) else None
 
-    async def get_osuID_from_name(self, username: str) -> Optional[int]:
-        return res['id'] if (res := self.bot.db.fetch(
-            'SELECT id FROM users WHERE username = %s',
+    async def get_osu_from_name(self, username: str) -> Optional[int]:
+        return res if (res := self.bot.db.fetch(
+            'SELECT id, username name FROM users '
+            'WHERE username = %s', # yes i know lol
             [username]
         )) else None
 
     @commands.command()
     @commands.guild_only()
-    async def recent(self, ctx: commands.Context) -> None:
+    async def top(self, ctx: commands.Context) -> None:
         msg = ctx.message.content.split(' ')[1:] # Remove command from content
         if (rx := '-rx' in msg): # Check for and remove -rx from command
             msg.remove('-rx')
 
+        if '-gm' in msg: # -gm <int>
+            if len(msg) < (index := msg.index('-gm')) + 1 \
+            or not msg[index + 1].isdecimal():
+                return await ctx.send(
+                    'Invalid syntax!\n> Correct syntax: `!top <-rx, -gm 2> <username/@mention>`.')
+
+            msg.remove('-gm')
+            if (gm := int(msg.pop(index))) not in range(2):
+                return await ctx.send('Invalid gamemode (only osu! & osu!taiko supported).')
+        else: # no -gm flag present
+            gm = 0
+
         if not msg: # Nothing specified, check for account link
-            if not all(users := [await self.get_osuID(ctx.author.id)]):
+            if not all(users := [await self.get_osu(ctx.author.id)]):
                 return await ctx.send(
                     'You must first link your Akatsuki account with **!linkosu**!')
         else: # They sent the user, either by mention or akatsuki username.
             if ctx.message.mentions:
-                if not all(users := [await self.get_osuID(i.id) for i in ctx.message.mentions]):
+                if not all(users := [await self.get_osu(i.id) for i in ctx.message.mentions]):
                     return await ctx.send(
                         "At least one of those people don't have their Akatsuki accoutnt linked!")
             else: # Akatsuki username
                 # They can only specify one name here due to limitations with spaces.
                 # (not going to enforce underscores only).
-                if not all(users := [await self.get_osuID_from_name(' '.join(msg))]):
+                if not all(users := [await self.get_osu_from_name(' '.join(msg))]):
                     ret = ["We couldn't find a user by that username on Akatsuki."]
                     if len(msg) > 1: ret.append( # Incase they're trying to..
                         'Please note that while using an Akatsuki username '
@@ -70,41 +85,194 @@ class osu(commands.Cog):
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
-            if not (res := self.bot.db.fetch(
-                # Get all information we need for the embed.
-                'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo, '
-                's.full_combo, s.mods, s.300_count n300, s.100_count n100, '
-                's.50_count n50, s.misses_count nmiss, s.time, s.completed, '
-                's.play_mode mode, '
+            if not (res := self.bot.db.fetchall(' '.join([
+                'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo,',
+                's.full_combo, s.mods, s.300_count n300, s.100_count n100,',
+                's.50_count n50, s.misses_count nmiss, s.time, s.completed,',
 
-                'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, '
-                'b.ar, b.od, b.max_combo as b_combo, b.hit_length, b.ranked, '
-                'b.bpm, b.playcount, b.passcount, '
+                'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, b.bpm,',
+                'b.ar, b.od, b.max_combo as b_combo, b.hit_length, b.ranked',
 
-                'u.username, c.tag '
+                f'FROM {table} s',
+                'LEFT JOIN beatmaps b USING(beatmap_md5)',
+                'WHERE s.userid = %s AND s.play_mode = %s',
+                'AND s.completed = 3',
+                'ORDER BY s.pp DESC LIMIT 5'
+                ]), [user['id'], gm]
+            )): return await ctx.send('The user has no scores!')
 
-                f'FROM {table} s '
-                'LEFT JOIN beatmaps b USING(beatmap_md5) '
-                'LEFT JOIN users u ON u.id = s.userid '
+            e = discord.Embed(colour = self.bot.config.embed_colour)
+
+            clan = self.bot.db.fetch(
+                'SELECT c.tag FROM users u '
                 'LEFT JOIN clans c ON c.id = u.clan_id '
-                'WHERE s.userid = %s '
-                'ORDER BY s.time DESC LIMIT 1',
-                [user])
-            ): return await ctx.send('The user has no scores!.')
+                'WHERE u.id = %s', [user['id']]
+            )
+
+            if clan and clan['tag']:
+                _name = f"[{clan['tag']}] {user['name']}"
+            else:
+                _name = user['name']
+
+            plural = lambda s: f"{s}'" if s[-1] == 's' else f"{s}'s"
+
+            e.set_author(
+                name = f"{plural(_name)} top 5 {utils.gamemode_readable(gm)} plays.",
+                url = f"https://akatsuki.pw/u/{user['id']}?mode={gm}&rx={int(rx)}",
+                icon_url = f"https://a.akatsuki.pw/{user['id']}")
+
+            scores = []
+            for idx, row in enumerate(res):
+                # Length and ranked status as formatted strings
+                row['length'] = utils.seconds_readable(row['hit_length'])
+                row['ranked'] = utils.status_readable(row['ranked'])
+
+                # Letter grade
+                # This is done.. stragely
+                # TODO: don't do strangely?
+                row['grade'] = self.bot.get_emoji(
+                    self.bot.config.akatsuki['grade_emojis'][
+                        utils.accuracy_grade(
+                            gm, row['acc'], row['mods'],
+                            row['n300'], row['n100'], row['n50'],
+                            row['nmiss']) if row['completed'] != 0 else 'F'
+                    ])
+
+                # Use oppai to calculate pp if FC,
+                # along with star rating with mods.
+                calc = Owoppai()
+
+                if gm == 0: # std
+                    fcAcc = utils.calc_accuracy_std(
+                        n300 = row['n300'],
+                        n100 = row['n100'],
+                        n50 = row['n50'],
+                        nmiss = 0) * 100.0
+                elif gm == 1:
+                    fcAcc = utils.calc_accuracy_taiko(
+                        n300 = row['n300'],
+                        n150 = row['n100'], # lol
+                        nmiss = 0) * 100.0
+
+                calc.configure(
+                    filename = row['bid'],
+                    accuracy = fcAcc,
+                    mode = gm,
+                    mods = row['mods'],
+                )
+
+                ifFc, row['difficulty'] = calc.calculate_pp()
+
+                if row['pp']:
+                    if row['full_combo']: # pp == ifFc
+                        row['points'] = f"**{row['pp']:,.2f}pp**"
+                    else: # Send ifFc PP as well
+                        row['points'] = f"**{row['pp']:,.2f}pp** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
+                else:
+                    row['difficulty'] = row[f"difficulty_{utils.gamemode_db(db)}"]
+                    row['points'] = f"**{row['score']:,}**"
+
+                # Mods string
+                if row['mods']:
+                    row['mods'] = f"+{utils.mods_readable(row['mods'])}"
+                else:
+                    row['mods'] = 'NM'
+
+                row['idx'] = idx + 1
+
+                import re # very primitive
+                if (r := match(r'^(?P<artist>[^-]+) - (?P<sn>[^\[]+)\[(?P<diff>[^\]]+)\]$', row['sn'])):
+                    row['sn'] = utils.truncate(f"{r['sn']} [{r['diff']}]", 60)
+                else: # regex match failed
+                    print(f'Failed regex\n{row["sn"]}\n')
+                    row['sn'] = 'Failed regex <@285190493703503872> noob'
+
+                scores.append('\n'.join([
+                    '{idx}. [{sn}](https://akatsuki.pw/b/{bid})',
+                    '▸ {grade} {points} {s_combo:,}/{b_combo:,}x {mods}',
+                    '▸ {acc:,.2f}% | [{n300}, {n100}, {n50}, {nmiss}]',
+                    '▸ \⭐{difficulty:.2f} | {length} @ \🎵{bpm}',
+                ]).format(**row))
+
+            e.add_field(
+                name = '** **', # empty title
+                value = '\n'.join(scores)
+            )
+
+            e.set_footer(text = f'Aika v{self.bot.config.version}')
+            e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
+            await ctx.send(embed = e)
+
+    @commands.command()
+    @commands.guild_only()
+    async def recent(self, ctx: commands.Context) -> None:
+        msg = ctx.message.content.split(' ')[1:] # Remove command from content
+        if (rx := '-rx' in msg): # Check for and remove -rx from command
+            msg.remove('-rx')
+
+        if not msg: # Nothing specified, check for account link
+            if not all(users := [await self.get_osu(ctx.author.id)]):
+                return await ctx.send(
+                    'You must first link your Akatsuki account with **!linkosu**!')
+        else: # They sent the user, either by mention or akatsuki username.
+            if ctx.message.mentions:
+                if not all(users := [await self.get_osu(i.id) for i in ctx.message.mentions]):
+                    return await ctx.send(
+                        "At least one of those people don't have their Akatsuki accoutnt linked!")
+            else: # Akatsuki username
+                # They can only specify one name here due to limitations with spaces.
+                # (not going to enforce underscores only).
+                if not all(users := [await self.get_osu_from_name(' '.join(msg))]):
+                    ret = ["We couldn't find a user by that username on Akatsuki."]
+                    if len(msg) > 1: ret.append( # Incase they're trying to..
+                        'Please note that while using an Akatsuki username '
+                        'as a paramter, only one user can be specified at a time.'
+                    )
+                    return await ctx.send('\n'.join(ret))
+
+        if len(users) > 3:
+            return await ctx.send(
+                'No more than 3 users may be requested at a time!')
+
+        for user in users:
+            table = 'scores_relax' if rx else 'scores'
+            if not (res := self.bot.db.fetch(' '.join([
+                # Get all information we need for the embed.
+                'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo,',
+                's.full_combo, s.mods, s.300_count n300, s.100_count n100,',
+                's.50_count n50, s.misses_count nmiss, s.time, s.completed,',
+                's.play_mode mode,',
+
+                'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, b.bpm,',
+                'b.ar, b.od, b.max_combo as b_combo, b.hit_length, b.ranked',
+
+                f'FROM {table} s',
+                'LEFT JOIN beatmaps b USING(beatmap_md5)',
+                'WHERE s.userid = %s',
+                'ORDER BY s.time DESC LIMIT 1']),
+                [user['id']]
+            )): return await ctx.send('The user has no scores!')
 
             e = discord.Embed(
                 title = res['sn'],
                 url = f"https://akatsuki.pw/b/{res['bid']}",
                 colour = self.bot.config.embed_colour)
 
-            name = res['username']
-            if res['tag']: # add clan
-                name = f"[{res['tag']}] {name}"
+            clan = self.bot.db.fetch(
+                'SELECT c.tag FROM users u '
+                'LEFT JOIN clans c ON c.id = u.clan_id '
+                'WHERE u.id = %s', [user['id']]
+            )
+
+            if clan and clan['tag']:
+                _name = f"[{clan['tag']}] {user['name']}"
+            else:
+                _name = user['name']
 
             e.set_author(
-                name = name,
-                url = f"https://akatsuki.pw/u/{user}?mode={res['mode']}&rx={int(rx)}",
-                icon_url = f'https://a.akatsuki.pw/{user}')
+                name = _name,
+                url = f"https://akatsuki.pw/u/{user['id']}?mode={res['mode']}&rx={int(rx)}",
+                icon_url = f"https://a.akatsuki.pw/{user['id']}")
 
             # Letter grade
             # This is done.. stragely
@@ -152,7 +320,7 @@ class osu(commands.Cog):
                 else: # Send ifFc PP as well
                     res['points'] = f"**{res['pp']:,.2f}pp** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
             else:
-                res['difficulty'] = res[f"difficulty_{utils.gamemode_db(res['play_mode'])}"]
+                res['difficulty'] = res[f"difficulty_{utils.gamemode_db(res['mode'])}"]
                 res['points'] = f"**{res['score']:,}**"
 
             # Mods string
@@ -164,7 +332,7 @@ class osu(commands.Cog):
             embeds = {
                 'Score information': '\n'.join([
                     '{points}',
-                    '**{acc:.2f}% {mods}** {s_combo}/{b_combo}x ',
+                    '**{acc:.2f}% {mods}** {s_combo:,}/{b_combo:,}x ',
                     '{grade} {{ {n300}x300, {n100}x100, {n50}x50, {nmiss}xM }}']),
                 'Beatmap information': '\n'.join([
                     '**{ranked} \⭐ {difficulty:.2f} | {length} @ \🎵 {bpm}**',
@@ -185,7 +353,7 @@ class osu(commands.Cog):
                 f'Score submitted {played_at} ago.'
             ]))
 
-            e.set_thumbnail(url = f"https://a.akatsuki.pw/{user}")
+            e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
             e.set_image(url = f"https://assets.ppy.sh/beatmaps/{res['bsid']}/covers/cover.jpg")
             await ctx.send(embed = e)
 

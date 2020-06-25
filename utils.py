@@ -197,3 +197,9 @@ def isfloat(s: str) -> bool: # obviously not made for safety
 
 def try_parse_float(s: str) -> Optional[float]:
     return float(s) if isfloat(s) else None
+
+def asciify(s: str) -> str:
+    return s.encode('ascii', 'ignore').decode('ascii')
+
+def truncate(s: str, max_len: int) -> str:
+    return f'{s[:max_len - 2]}..' if len(s) > max_len else s
