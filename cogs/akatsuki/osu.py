@@ -182,11 +182,17 @@ class osu(commands.Cog):
 
                 ifFc, row['difficulty'] = calc.calculate_pp()
 
-                if row['pp']: # If we don't fc, send ifFc PP as well.
-                    row['points'] = f"**{row['pp']:,.2f}pp**" if row['full_combo'] \
-                               else f"**{row['pp']:,.2f}pp** ({fcAcc:.2f}%: {ifFc:,.2f}pp)"
+                if row['pp']:
+                    row['pp'] = f"**{row['pp']:,.2f}pp**" if row['pp'] \
+                            else f"**{row['score']:,}**"
+
+                    # If the user didn't fc, we need to print out
+                    # the amount it would have been for an fc
+                    # (with acc corrected for misses).
+                    row['fcPP'] = f'\n▸ {ifFc:,.2f}pp for {fcAcc:.2f}% FC' if row['full_combo'] else ''
                 else:
-                    row['points'] = f"**{row['score']:,}**"
+                    row['pp'] = f"**{row['score']:,}**"
+                    row['fcPP'] = ''
 
                 # Mods string
                 if row['mods']:
@@ -203,8 +209,8 @@ class osu(commands.Cog):
 
                 scores.append('\n'.join([
                     '{idx}. [{sn}](https://akatsuki.pw/b/{bid})',
-                    '▸ {grade} {points} {s_combo:,}/{b_combo:,}x {mods}',
-                    '▸ {acc:,.2f}% | {{{n100}x100, {n50}x50, {nmiss}xM}}',
+                    '▸ {grade} **{acc:,.2f}% {pp}** {mods} {s_combo:,}/{b_combo:,}x{fcPP}',
+                    '▸ {{{n100}x100, {n50}x50, {nmiss}xM}}',
                     '▸ \⭐{difficulty:.2f} | {length} @ \🎵{bpm}',
                 ]).format(**row))
 
