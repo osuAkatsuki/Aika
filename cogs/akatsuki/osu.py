@@ -205,7 +205,7 @@ class osu(commands.Cog):
                 scores.append('\n'.join([
                     '{idx}. [{sn}](https://akatsuki.pw/b/{bid})',
                     '▸ {grade} {points} {s_combo:,}/{b_combo:,}x {mods}',
-                    '▸ {acc:,.2f}% | [{n300}, {n100}, {n50}, {nmiss}]',
+                    '▸ {acc:,.2f}% | {{{n100}x100, {n50}x50, {nmiss}xM}}',
                     '▸ \⭐{difficulty:.2f} | {length} @ \🎵{bpm}',
                 ]).format(**row))
 
@@ -340,7 +340,6 @@ class osu(commands.Cog):
                 else: # Send ifFc PP as well
                     res['points'] = f"**{res['pp']:,.2f}pp** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
             else:
-                res['difficulty'] = res[f"difficulty_{utils.gamemode_db(res['mode'])}"]
                 res['points'] = f"**{res['score']:,}**"
 
             # Mods string
@@ -353,7 +352,7 @@ class osu(commands.Cog):
                 'Score information': '\n'.join([
                     '{points}',
                     '**{acc:.2f}% {mods}** {s_combo:,}/{b_combo:,}x ',
-                    '{grade} {{ {n300}x300, {n100}x100, {n50}x50, {nmiss}xM }}']),
+                    '{grade} {{ {n100}x100, {n50}x50, {nmiss}xM }}']),
                 'Beatmap information': '\n'.join([
                     '**{ranked} \⭐ {difficulty:.2f} | {length} @ \🎵 {bpm}**',
                     '**AR** {ar} **OD** {od} **[__[Download](https://akatsuki.pw/d/{bsid})__]**'])
