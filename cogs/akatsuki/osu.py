@@ -183,15 +183,15 @@ class osu(commands.Cog):
                 ifFc, row['difficulty'] = calc.calculate_pp()
 
                 if row['pp']:
-                    row['pp'] = f"**{row['pp']:,.2f}pp**" if row['pp'] \
-                            else f"**{row['score']:,}**"
+                    row['pp'] = f"{row['pp']:,.2f}pp" if row['pp'] \
+                            else f"{row['score']:,}"
 
                     # If the user didn't fc, we need to print out
                     # the amount it would have been for an fc
                     # (with acc corrected for misses).
                     row['fcPP'] = f'\n▸ {ifFc:,.2f}pp for {fcAcc:.2f}% FC' if row['full_combo'] else ''
                 else:
-                    row['pp'] = f"**{row['score']:,}**"
+                    row['pp'] = f"{row['score']:,}"
                     row['fcPP'] = ''
 
                 # Mods string
