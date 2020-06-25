@@ -182,7 +182,7 @@ class osu(commands.Cog):
 
                 import re # very primitive
                 if (r := match(r'^(?P<artist>[^-]+) - (?P<sn>[^\[]+)\[(?P<diff>[^\]]+)\]$', row['sn'])):
-                    row['sn'] = utils.truncate(f"{utils.truncate(r['sn'], 28)} [{r['diff']}]", 56)
+                    row['sn'] = r['sn']
                 else: # regex match failed
                     print(f'Failed regex\n{row["sn"]}\n')
                     row['sn'] = 'Failed regex <@285190493703503872> noob'
