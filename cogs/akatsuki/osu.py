@@ -39,14 +39,14 @@ class osu(commands.Cog):
             'SELECT au.osu_id id, u.username name FROM aika_users au '
             'LEFT JOIN users u ON u.id = au.osu_id WHERE au.id = %s',
             [discordID]
-        )) else None
+        )) and res['id'] else None
 
     async def get_osu_from_name(self, username: str) -> Optional[int]:
         return res if (res := self.bot.db.fetch(
             'SELECT id, username name FROM users '
             'WHERE username = %s', # yes i know lol
             [username]
-        )) else None
+        )) and res['id'] else None
 
     @commands.command()
     @commands.guild_only()
