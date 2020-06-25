@@ -6,17 +6,25 @@ from discord.ext import commands, tasks
 
 from datetime import datetime as dt, timezone as tz
 from time import time
-from re import match
+from re import (
+    compile as re_compile,
+    match as re_match
+)
 
 from collections import defaultdict
 
 from Aika import Ansi
 from oppai.owoppai import Owoppai
+
 import utils
+from utils import Mods
 
 class osu(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+        self.map_regex = re_compile( # Very very primitive regex..
+            r'^(?P<artist>.+) - (?P<sn>.+)\[(?P<diff>.+)\]$')
         if self.bot.config.server_build:
             # We only want this to run when
             # we're on the Akatsuki server.
@@ -121,10 +129,20 @@ class osu(commands.Cog):
                 url = f"https://akatsuki.pw/u/{user['id']}?mode={gm}&rx={int(rx)}",
                 icon_url = f"https://a.akatsuki.pw/{user['id']}")
 
+            # Store the score embed strings as a list initially since we
+            # actually want to print the whole embed in a single block.
+            # We'll eventually join them all by newlines into the
             scores = []
             for idx, row in enumerate(res):
+                # Iterate through scores, adding them to `scores`.
+                # We only need idx to print out the score position.
+                if row['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
+                    row['hit_length'] *= 1.5
+                elif row['mods'] & Mods.HALFTIME:
+                    row['hit_length'] /= 1.5
+
                 # Length and ranked status as formatted strings
-                row['length'] = utils.seconds_readable(row['hit_length'])
+                row['length'] = utils.seconds_readable(int(row['hit_length']))
                 row['ranked'] = utils.status_readable(row['ranked'])
 
                 # Letter grade
@@ -142,14 +160,15 @@ class osu(commands.Cog):
                 # along with star rating with mods.
                 calc = Owoppai()
 
-                if gm == 0: # std
+                if row['full_combo']:
+                    fcAcc = row['acc']
+                else:
                     fcAcc = utils.calc_accuracy_std(
                         n300 = row['n300'],
                         n100 = row['n100'],
                         n50 = row['n50'],
-                        nmiss = 0) * 100.0
-                elif gm == 1:
-                    fcAcc = utils.calc_accuracy_taiko(
+                        nmiss = 0) * 100.0 if gm == 0 \
+                    else utils.calc_accuracy_taiko(
                         n300 = row['n300'],
                         n150 = row['n100'], # lol
                         nmiss = 0) * 100.0
@@ -163,13 +182,10 @@ class osu(commands.Cog):
 
                 ifFc, row['difficulty'] = calc.calculate_pp()
 
-                if row['pp']:
-                    if row['full_combo']: # pp == ifFc
-                        row['points'] = f"**{row['pp']:,.2f}pp**"
-                    else: # Send ifFc PP as well
-                        row['points'] = f"**{row['pp']:,.2f}pp** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
+                if row['pp']: # If we don't fc, send ifFc PP as well.
+                    row['points'] = f"**{row['pp']:,.2f}pp**" if row['full_combo'] \
+                               else f"**{row['pp']:,.2f}pp** ({fcAcc:.2f}%: {ifFc:,.2f}pp)"
                 else:
-                    row['difficulty'] = row[f"difficulty_{utils.gamemode_db(db)}"]
                     row['points'] = f"**{row['score']:,}**"
 
                 # Mods string
@@ -180,12 +196,11 @@ class osu(commands.Cog):
 
                 row['idx'] = idx + 1
 
-                import re # very primitive
-                if (r := match(r'^(?P<artist>[^-]+) - (?P<sn>[^\[]+)\[(?P<diff>[^\]]+)\]$', row['sn'])):
-                    row['sn'] = r['sn']
-                else: # regex match failed
+                if not (r := re_match(self.map_regex, row['sn'])):
                     print(f'Failed regex\n{row["sn"]}\n')
-                    row['sn'] = 'Failed regex <@285190493703503872> noob'
+                    row['sn'] = 'cmyui failed regex!@2!!'
+                else:
+                    row['sn'] = r['sn']
 
                 scores.append('\n'.join([
                     '{idx}. [{sn}](https://akatsuki.pw/b/{bid})',
@@ -285,8 +300,13 @@ class osu(commands.Cog):
                         res['nmiss']) if res['completed'] != 0 else 'F'
                 ])
 
+            if res['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
+                res['hit_length'] *= 1.5
+            elif res['mods'] & Mods.HALFTIME:
+                res['hit_length'] /= 1.5
+
             # Length and ranked status as formatted strings
-            res['length'] = utils.seconds_readable(res['hit_length'])
+            res['length'] = utils.seconds_readable(int(res['hit_length']))
             res['ranked'] = utils.status_readable(res['ranked'])
 
             # Use oppai to calculate pp if FC,
@@ -360,7 +380,7 @@ class osu(commands.Cog):
     @commands.command()
     @commands.guild_only()
     async def linkosu(self, ctx: commands.Context) -> None:
-        if not (userid := await self.get_osuID(ctx.author.id)):
+        if not await self.get_osu(ctx.author.id):
             try: # Send PM first, since if we fail we need to warn user.
                 await ctx.author.send('\n'.join([
                     'Please paste the following command into #osu (or dm with Aika) ingame.',
