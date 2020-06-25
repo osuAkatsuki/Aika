@@ -317,19 +317,19 @@ class osu(commands.Cog):
             # Use oppai to calculate pp if FC,
             # along with star rating with mods.
             calc = Owoppai()
-            is_fc = row['s_combo'] == row['b_combo']
+            is_fc = res['s_combo'] == res['b_combo']
 
             if is_fc:
-                fcAcc = row['acc']
+                fcAcc = res['acc']
             else:
                 fcAcc = utils.calc_accuracy_std(
-                    n300 = row['n300'],
-                    n100 = row['n100'],
-                    n50 = row['n50'],
+                    n300 = res['n300'],
+                    n100 = res['n100'],
+                    n50 = res['n50'],
                     nmiss = 0) * 100.0 if gm == 0 \
                 else utils.calc_accuracy_taiko(
-                    n300 = row['n300'],
-                    n150 = row['n100'], # lol
+                    n300 = res['n300'],
+                    n150 = res['n100'], # lol
                     nmiss = 0) * 100.0
 
             calc.configure(
@@ -341,13 +341,13 @@ class osu(commands.Cog):
 
             ifFc, res['difficulty'] = calc.calculate_pp()
 
-            if row['pp']:
+            if res['pp']:
                 res['pp'] = f"{res['pp']:,.2f}pp"
 
                 # If the user didn't fc, we need to print out
                 # the amount it would have been for an fc
                 # (with acc corrected for misses).
-                row['fcPP'] = f'\n▸ {ifFc:,.2f}pp for {fcAcc:.2f}% FC' if not is_fc else ''
+                res['fcPP'] = f'\n▸ {ifFc:,.2f}pp for {fcAcc:.2f}% FC' if not is_fc else ''
             else:
                 res['pp'] = f"{res['score']:,}"
                 res['fcPP'] = ''
