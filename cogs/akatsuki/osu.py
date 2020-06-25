@@ -95,7 +95,7 @@ class osu(commands.Cog):
             table = 'scores_relax' if rx else 'scores'
             if not (res := self.bot.db.fetchall(' '.join([
                 'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo,',
-                's.full_combo, s.mods, s.300_count n300, s.100_count n100,',
+                's.mods, s.300_count n300, s.100_count n100,',
                 's.50_count n50, s.misses_count nmiss, s.time, s.completed,',
 
                 'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, b.bpm,',
@@ -137,9 +137,9 @@ class osu(commands.Cog):
                 # Iterate through scores, adding them to `scores`.
                 # We only need idx to print out the score position.
                 if row['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
-                    row['hit_length'] *= 1.5
-                elif row['mods'] & Mods.HALFTIME:
                     row['hit_length'] /= 1.5
+                elif row['mods'] & Mods.HALFTIME:
+                    row['hit_length'] *= 1.5
 
                 # Length and ranked status as formatted strings
                 row['length'] = utils.seconds_readable(int(row['hit_length']))
@@ -159,8 +159,9 @@ class osu(commands.Cog):
                 # Use oppai to calculate pp if FC,
                 # along with star rating with mods.
                 calc = Owoppai()
+                is_fc = row['s_combo'] == row['b_combo']
 
-                if row['full_combo']:
+                if is_fc:
                     fcAcc = row['acc']
                 else:
                     fcAcc = utils.calc_accuracy_std(
@@ -189,7 +190,7 @@ class osu(commands.Cog):
                     # If the user didn't fc, we need to print out
                     # the amount it would have been for an fc
                     # (with acc corrected for misses).
-                    row['fcPP'] = f'\n▸ {ifFc:,.2f}pp for {fcAcc:.2f}% FC' if row['full_combo'] else ''
+                    row['fcPP'] = f'\n▸ {ifFc:,.2f}pp for {fcAcc:.2f}% FC' if is_fc else ''
                 else:
                     row['pp'] = f"{row['score']:,}"
                     row['fcPP'] = ''
@@ -259,7 +260,7 @@ class osu(commands.Cog):
             if not (res := self.bot.db.fetch(' '.join([
                 # Get all information we need for the embed.
                 'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo,',
-                's.full_combo, s.mods, s.300_count n300, s.100_count n100,',
+                's.mods, s.300_count n300, s.100_count n100,',
                 's.50_count n50, s.misses_count nmiss, s.time, s.completed,',
                 's.play_mode mode,',
 
@@ -306,9 +307,9 @@ class osu(commands.Cog):
                 ])
 
             if res['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
-                res['hit_length'] *= 1.5
-            elif res['mods'] & Mods.HALFTIME:
                 res['hit_length'] /= 1.5
+            elif res['mods'] & Mods.HALFTIME:
+                res['hit_length'] *= 1.5
 
             # Length and ranked status as formatted strings
             res['length'] = utils.seconds_readable(int(res['hit_length']))
@@ -340,7 +341,7 @@ class osu(commands.Cog):
             ifFc, res['difficulty'] = calc.calculate_pp()
 
             if res['pp']:
-                if res['full_combo']: # pp == ifFc
+                if res['s_combo'] == res['b_combo']:
                     res['points'] = f"**{res['pp']:,.2f}pp**"
                 else: # Send ifFc PP as well
                     res['points'] = f"**{res['pp']:,.2f}pp** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
