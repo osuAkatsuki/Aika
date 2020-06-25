@@ -164,15 +164,15 @@ class osu(commands.Cog):
                 if is_fc:
                     fcAcc = row['acc']
                 else:
-                    fcAcc = utils.calc_accuracy_std(
+                    fcAcc = (utils.calc_accuracy_std(
                         n300 = row['n300'],
                         n100 = row['n100'],
                         n50 = row['n50'],
-                        nmiss = 0) * 100.0 if gm == 0 \
+                        nmiss = 0) if gm == 0 \
                     else utils.calc_accuracy_taiko(
                         n300 = row['n300'],
                         n150 = row['n100'], # lol
-                        nmiss = 0) * 100.0
+                        nmiss = 0)) * 100.0
 
                 calc.configure(
                     filename = row['bid'],
@@ -322,15 +322,15 @@ class osu(commands.Cog):
             if is_fc:
                 fcAcc = res['acc']
             else:
-                fcAcc = utils.calc_accuracy_std(
+                fcAcc = (utils.calc_accuracy_std(
                     n300 = res['n300'],
                     n100 = res['n100'],
                     n50 = res['n50'],
-                    nmiss = 0) * 100.0 if gm == 0 \
+                    nmiss = 0) if res['mode'] == 0 \
                 else utils.calc_accuracy_taiko(
                     n300 = res['n300'],
                     n150 = res['n100'], # lol
-                    nmiss = 0) * 100.0
+                    nmiss = 0)) * 100.0
 
             calc.configure(
                 filename = res['bid'],
