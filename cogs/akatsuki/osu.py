@@ -184,8 +184,7 @@ class osu(commands.Cog):
                 ifFc, row['difficulty'] = calc.calculate_pp()
 
                 if row['pp']:
-                    row['pp'] = f"{row['pp']:,.2f}pp" if row['pp'] \
-                            else f"{row['score']:,}"
+                    row['pp'] = f"{row['pp']:,.2f}pp"
 
                     # If the user didn't fc, we need to print out
                     # the amount it would have been for an fc
@@ -318,18 +317,20 @@ class osu(commands.Cog):
             # Use oppai to calculate pp if FC,
             # along with star rating with mods.
             calc = Owoppai()
+            is_fc = row['s_combo'] == row['b_combo']
 
-            if res['mode'] == 0: # std
-                fcAcc = utils.calc_accuracy_std(
-                    n300 = res['n300'],
-                    n100 = res['n100'],
-                    n50 = res['n50'],
-                    nmiss = res['nmiss']) * 100.0
+            if is_fc:
+                fcAcc = row['acc']
             else:
-                fcAcc = utils.calc_accuracy_taiko(
-                    n300 = res['n300'],
-                    n150 = res['n100'], # lol
-                    nmiss = res['nmiss']) * 100.0
+                fcAcc = utils.calc_accuracy_std(
+                    n300 = row['n300'],
+                    n100 = row['n100'],
+                    n50 = row['n50'],
+                    nmiss = 0) * 100.0 if gm == 0 \
+                else utils.calc_accuracy_taiko(
+                    n300 = row['n300'],
+                    n150 = row['n100'], # lol
+                    nmiss = 0) * 100.0
 
             calc.configure(
                 filename = res['bid'],
@@ -340,13 +341,16 @@ class osu(commands.Cog):
 
             ifFc, res['difficulty'] = calc.calculate_pp()
 
-            if res['pp']:
-                if res['s_combo'] == res['b_combo']:
-                    res['points'] = f"**{res['pp']:,.2f}pp**"
-                else: # Send ifFc PP as well
-                    res['points'] = f"**{res['pp']:,.2f}pp** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
+            if row['pp']:
+                res['pp'] = f"{res['pp']:,.2f}pp"
+
+                # If the user didn't fc, we need to print out
+                # the amount it would have been for an fc
+                # (with acc corrected for misses).
+                row['fcPP'] = f'\n▸ {ifFc:,.2f}pp for {fcAcc:.2f}% FC' if not is_fc else ''
             else:
-                res['points'] = f"**{res['score']:,}**"
+                res['pp'] = f"{res['score']:,}"
+                res['fcPP'] = ''
 
             # Mods string
             if res['mods']:
@@ -356,9 +360,8 @@ class osu(commands.Cog):
 
             embeds = {
                 'Score information': '\n'.join([
-                    '{points}',
-                    '**{acc:.2f}% {mods}** {s_combo:,}/{b_combo:,}x ',
-                    '{grade} {{ {n100}x100, {n50}x50, {nmiss}xM }}']),
+                    '▸ {grade} **{pp} {acc:.2f}%** {mods} {s_combo:,}/{b_combo:,}x{fcPP}',
+                    '▸ {{ {n100}x100, {n50}x50, {nmiss}xM }}']),
                 'Beatmap information': '\n'.join([
                     '**{ranked} \⭐ {difficulty:.2f} | {length} @ \🎵 {bpm}**',
                     '**AR** {ar} **OD** {od} **[__[Download](https://akatsuki.pw/d/{bsid})__]**'])
