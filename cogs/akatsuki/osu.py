@@ -380,7 +380,7 @@ class osu(commands.Cog):
     @commands.command()
     @commands.guild_only()
     async def linkosu(self, ctx: commands.Context) -> None:
-        if not await self.get_osu(ctx.author.id):
+        if not (user := await self.get_osu(ctx.author.id)):
             try: # Send PM first, since if we fail we need to warn user.
                 await ctx.author.send('\n'.join([
                     'Please paste the following command into #osu (or dm with Aika) ingame.',
@@ -402,7 +402,7 @@ class osu(commands.Cog):
             await ctx.send('\n'.join([
                 'Your Discord has already been linked to an osu!Akatsuki account!',
                 'If you would like to remove this, please contact cmyui#0425 directly.',
-                f'> **https://akatsuki.pw/u/{res["osu_id"]}**'
+                f'> **https://akatsuki.pw/u/{user["id"]}**'
             ]))
 
     @commands.command(hidden = True)
