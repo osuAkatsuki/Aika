@@ -105,7 +105,7 @@ class osu(commands.Cog):
                 'LEFT JOIN beatmaps b USING(beatmap_md5)',
                 'WHERE s.userid = %s AND s.play_mode = %s',
                 'AND s.completed = 3',
-                'ORDER BY s.pp DESC LIMIT 5'
+                'ORDER BY s.pp DESC LIMIT 3'
                 ]), [user['id'], gm]
             )): return await ctx.send('The user has no scores!')
 
@@ -197,7 +197,7 @@ class osu(commands.Cog):
                 row['idx'] = idx + 1
 
                 if (r := re_match(self.map_regex, row['sn'])):
-                    row['sn'] = f"{utils.truncate(r['sn'], 30)} [{utils.truncate(r['diff'], 20)}]"
+                    row['sn'] = f"{utils.truncate(r['sn'], 35)} [{utils.truncate(r['diff'], 25)}]"
                 else:
                     return await ctx.send('<@285190493703503872> broke regex')
 
