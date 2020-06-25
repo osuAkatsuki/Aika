@@ -196,11 +196,10 @@ class osu(commands.Cog):
 
                 row['idx'] = idx + 1
 
-                if not (r := re_match(self.map_regex, row['sn'])):
-                    print(f'Failed regex\n{row["sn"]}\n')
-                    row['sn'] = 'cmyui failed regex!@2!!'
+                if (r := re_match(self.map_regex, row['sn'])):
+                    row['sn'] = f"{utils.truncate(r['sn'], 40)} [{utils.truncate(r['diff'], 20)}]"
                 else:
-                    row['sn'] = r['sn']
+                    return await ctx.send('<@285190493703503872> broke regex')
 
                 scores.append('\n'.join([
                     '{idx}. [{sn}](https://akatsuki.pw/b/{bid})',
