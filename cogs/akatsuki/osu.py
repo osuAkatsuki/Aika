@@ -360,7 +360,7 @@ class osu(commands.Cog):
 
             embeds = {
                 'Score information': '\n'.join([
-                    '▸ {grade} **{pp} {acc:.2f}%** {mods} {s_combo:,}/{b_combo:,}x{fcPP}',
+                    '▸ {grade} **{acc:.2f}% {pp}** {mods} {s_combo:,}/{b_combo:,}x{fcPP}',
                     '▸ {{ {n100}x100, {n50}x50, {nmiss}xM }}']),
                 'Beatmap information': '\n'.join([
                     '**{ranked} \⭐ {difficulty:.2f} | {length} @ \🎵 {bpm}**',
