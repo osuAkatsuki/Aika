@@ -125,7 +125,7 @@ class osu(commands.Cog):
             plural = lambda s: f"{s}'" if s[-1] == 's' else f"{s}'s"
 
             e.set_author(
-                name = f"{plural(_name)} top 5 {utils.gamemode_readable(gm)} plays.",
+                name = f"{plural(_name)} top 3 {utils.gamemode_readable(gm)} plays.",
                 url = f"https://akatsuki.pw/u/{user['id']}?mode={gm}&rx={int(rx)}",
                 icon_url = f"https://a.akatsuki.pw/{user['id']}")
 
