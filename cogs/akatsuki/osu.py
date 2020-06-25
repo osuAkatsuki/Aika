@@ -190,7 +190,7 @@ class osu(commands.Cog):
                     # If the user didn't fc, we need to print out
                     # the amount it would have been for an fc
                     # (with acc corrected for misses).
-                    row['fcPP'] = f'\n▸ {ifFc:,.2f}pp for {fcAcc:.2f}% FC' if is_fc else ''
+                    row['fcPP'] = f'\n▸ {ifFc:,.2f}pp for {fcAcc:.2f}% FC' if not is_fc else ''
                 else:
                     row['pp'] = f"{row['score']:,}"
                     row['fcPP'] = ''
