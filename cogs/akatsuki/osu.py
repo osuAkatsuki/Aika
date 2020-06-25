@@ -197,7 +197,7 @@ class osu(commands.Cog):
                 row['idx'] = idx + 1
 
                 if (r := re_match(self.map_regex, row['sn'])):
-                    row['sn'] = f"{utils.truncate(r['sn'], 40)} [{utils.truncate(r['diff'], 20)}]"
+                    row['sn'] = f"{utils.truncate(r['sn'], 30)} [{utils.truncate(r['diff'], 20)}]"
                 else:
                     return await ctx.send('<@285190493703503872> broke regex')
 
