@@ -190,7 +190,12 @@ class osu(commands.Cog):
                     # If the user didn't fc, we need to print out
                     # the amount it would have been for an fc
                     # (with acc corrected for misses).
-                    row['fcPP'] = f'\n▸ {ifFc:,.2f}pp for {fcAcc:.2f}% FC' if not is_fc else ''
+                    if not is_fc:
+                        row['fcPP'] = f'\n▸ \❌{row['nmiss']} ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)'
+                        row['comboed'] = '{s_combo:,}/{b_combo:,}x'.format(**row)
+                    else:
+                        row['fcPP'] = ''
+                        row['comboed'] = 'FC'
                 else:
                     row['pp'] = f"{row['score']:,}"
                     row['fcPP'] = ''
@@ -211,7 +216,7 @@ class osu(commands.Cog):
                 scores.append('\n'.join([
                     '{idx}. [{sn}](https://akatsuki.pw/b/{bid})',
                     '▸ {grade} **{acc:,.2f}% {pp} {mods}**{fcPP}',
-                    '▸ {{{n100}x100, {n50}x50, {nmiss}xM}} {s_combo:,}/{b_combo:,}x',
+                    '▸ {{ {n100}x100, {n50}x50 }} {comboed}',
                     '▸ \⭐{difficulty:.2f} \🎵{bpm:,} \🕰️{length} **AR**{ar:.2f} **OD**{od:.2f}'
                 ]).format(**row))
 
