@@ -132,7 +132,7 @@ class Aika(commands.Bot):
 
     async def send(self, ctx: commands.Context,
                    *args, **kwargs) -> Optional[discord.Message]:
-        # This method's purpose is basically to allow aikato edit old responses
+        # This method's purpose is basically to allow aika to edit old responses
         # to commands, by caching the request and the response message objects
         # (and an expiry of 10mins).
 
@@ -154,7 +154,7 @@ class Aika(commands.Bot):
             self.resp_cache.append({
                 'msg': ctx.message, # their msg
                 'resp': m, # our msg
-                'expire': current_time + (10)
+                'expire': current_time + (10 * 60)
             })
 
         return m
