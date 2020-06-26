@@ -210,9 +210,9 @@ class osu(commands.Cog):
 
                 scores.append('\n'.join([
                     '{idx}. [{sn}](https://akatsuki.pw/b/{bid})',
-                    '▸ {grade} **{acc:,.2f}% {pp}** {mods}{fcPP}',
+                    '▸ {grade} **{acc:,.2f}% {pp} {mods}**{fcPP}',
                     '▸ {{{n100}x100, {n50}x50, {nmiss}xM}} {s_combo:,}/{b_combo:,}x',
-                    '▸ \⭐{difficulty:.2f} \🎵{bpm:,} \🕰️{length} AR{ar} OD{od}'
+                    '▸ \⭐{difficulty:.2f} \🎵{bpm:,} \🕰️{length} **AR**{ar:.2f} **OD**{od:.2f}'
                 ]).format(**row))
 
             e.add_field(
