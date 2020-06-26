@@ -109,26 +109,26 @@ class Aika(commands.Bot):
     # Events #
     ##########
 
-    async def on_message(self, message: discord.Message) -> None:
+    async def on_message(self, msg: discord.Message) -> None:
         await self.wait_until_ready()
-        if not message.content or message.author.bot:
+        if not msg.content or msg.author.bot:
             return
 
         filtered = (self.config.filters or self.config.substring_filters) \
-            and await self.filter_message(message.content.lower())
+            and await self.filter_message(msg.content.lower())
 
         if self.config.verbose_console:
-            colour = Ansi.LIGHT_MAGENTA if message.author.bot \
+            colour = Ansi.LIGHT_MAGENTA if msg.author.bot \
                 else Ansi.LIGHT_RED if filtered \
                 else Ansi.LIGHT_CYAN
 
-            await self.print_console(message, colour)
+            await self.print_console(msg, colour)
 
         if filtered:
-            return await message.delete()
+            return await msg.delete()
 
-        if self.config.server_build or message.author.id == self.owner_id:
-            await self.process_commands(message)
+        if self.config.server_build or msg.author.id == self.owner_id:
+            await self.process_commands(msg)
 
     async def on_message_edit(self, before: discord.Message,
                               after: discord.Message) -> None:
@@ -149,6 +149,14 @@ class Aika(commands.Bot):
 
         if self.config.server_build or after.author.id == self.owner_id:
             await self.process_commands(after)
+
+    async def on_message_delete(self, msg: discord.Message) -> None:
+        # Whenever a message is deleted, check if it was in
+        # our cache, and delete it (so they don't accumulate).
+        is_cached = lambda m: m['msg'] == msg
+
+        if (hit := discord.utils.find(is_cached, self.resp_cache)):
+            self.resp_cache.remove(hit)
 
     async def on_member_ban(self, guild: discord.Guild,
                             user: Union[discord.Member, discord.User]) -> None:

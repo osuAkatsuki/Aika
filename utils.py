@@ -5,6 +5,12 @@
 from typing import List, Optional
 from enum import IntEnum
 
+from re import compile as re_compile
+regexes = {
+    'beatmap_url': re_compile(r'(?:https?://)?(?:www.)?akatsuki.pw/b/(?P<bid>\d{1,7})/?'),
+    'song_name': re_compile(r'(?P<artist>.+) - (?P<sn>.+)\[(?P<diff>.+)\]')
+}
+
 class Mods(IntEnum):
     NOMOD = 0
     NOFAIL = 1 << 0
