@@ -249,10 +249,10 @@ class Aika(commands.Bot):
 
     async def print_console(self, msg: discord.Message, col: Ansi) -> None:
         msg_clean = msg.clean_content.replace('\u001b', '')
-        print('{c}[{time:%H:%M:%S} {guild} #{chan}]{gray} {author}{reset}: {msg}'.format(
-            c = repr(col), time = datetime.now(), guild = msg.channel.guild,
-            chan = msg.channel, gray = repr(Ansi.GRAY), author = msg.author,
-            reset = repr(Ansi.RESET), msg = msg.clean_content.replace('\u001b', '')
+        print('{c!r}[{time:%H:%M:%S} {guild} #{chan}]{gray!r} {author}{reset!r}: {msg}'.format(
+            c = col, time = datetime.now(), guild = msg.channel.guild,
+            chan = msg.channel, gray = Ansi.GRAY, author = msg.author,
+            reset = Ansi.RESET, msg = msg.clean_content.replace('\u001b', '')
         ))
 
     @staticmethod
