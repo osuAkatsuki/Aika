@@ -225,12 +225,11 @@ class Aika(commands.Bot):
             self.resp_cache.remove(hit)
             hit = False
 
-
         if len(args) == 1 and isinstance(args[0], str):
             kwargs['content'] = args[0]
 
-        if 'embed' not in kwargs: kwargs['embed'] = None
-        if 'content' not in kwargs: kwargs['content'] = None
+        kwargs['embed'] = kwargs.pop('embed', None)
+        kwargs['content'] = kwargs.pop('content', None)
 
         if hit: # cache hit, edit cached response.
             await (m := hit['resp']).edit(**kwargs)
@@ -250,10 +249,11 @@ class Aika(commands.Bot):
 
     async def print_console(self, msg: discord.Message, col: Ansi) -> None:
         msg_clean = msg.clean_content.replace('\u001b', '')
-        print(f'{col!r}[{datetime.now():%H:%M:%S} {msg.channel.guild} #{msg.channel}]',
-            f'{Ansi.GRAY!r} {msg.author}',
-            f'{Ansi.RESET!r}: {msg_clean}',
-            sep = '')
+        print('{c}[{time:%H:%M:%S} {guild} #{chan}]{gray} {author}{reset}: {msg}'.format(
+            c = repr(col), time = datetime.now(), guild = msg.channel.guild,
+            chan = msg.channel, gray = repr(Ansi.GRAY), author = msg.author,
+            reset = repr(Ansi.RESET), msg = msg.clean_content.replace('\u001b', '')
+        ))
 
     @staticmethod
     async def fetch(session, url):
