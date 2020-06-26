@@ -133,9 +133,8 @@ class osu(commands.Cog):
             # actually want to print the whole embed in a single block.
             # We'll eventually join them all by newlines into the
             scores = []
-            for idx, row in enumerate(res):
+            for row in res:
                 # Iterate through scores, adding them to `scores`.
-                # We only need idx to print out the score position.
                 if row['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
                     row['hit_length'] /= 1.5
                 elif row['mods'] & Mods.HALFTIME:
@@ -200,15 +199,13 @@ class osu(commands.Cog):
                 else:
                     row['mods'] = 'NM'
 
-                row['idx'] = idx + 1
-
                 if (r := re_match(self.map_regex, row['sn'])):
                     row['sn'] = f"{utils.truncate(r['sn'], 35)} [{utils.truncate(r['diff'], 25)}]"
                 else:
                     return await ctx.send('<@285190493703503872> broke regex')
 
                 scores.append('\n'.join([
-                    '{idx}. **[\⭐{difficulty:.2f} | \🎵{bpm:,}]** [{sn}](https://akatsuki.pw/b/{bid}) ({length})',
+                    '[\⭐{difficulty:.2f}\🎵{bpm:,}\🕰️{length}] [{sn}](https://akatsuki.pw/b/{bid})',
                     '▸ {grade} **{acc:,.2f}% {pp}** {mods}{fcPP}',
                     '▸ {{{n100}x100, {n50}x50, {nmiss}xM}} {s_combo:,}/{b_combo:,}x',
                 ]).format(**row))
