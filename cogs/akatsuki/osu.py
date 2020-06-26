@@ -36,15 +36,15 @@ class osu(commands.Cog):
 
     async def get_osu(self, discordID: int) -> Optional[int]:
         return res if (res := self.bot.db.fetch(
-            'SELECT au.osu_id id, u.username name FROM aika_users au '
-            'LEFT JOIN users u ON u.id = au.osu_id WHERE au.id = %s',
-            [discordID]
+            'SELECT au.osu_id id, u.username name, u.privileges priv '
+            'FROM aika_users au LEFT JOIN users u ON u.id = au.osu_id '
+            'WHERE au.id = %s', [discordID]
         )) and res['id'] else None
 
     async def get_osu_from_name(self, username: str) -> Optional[int]:
         return res if (res := self.bot.db.fetch(
-            'SELECT id, username name FROM users '
-            'WHERE username = %s', # yes i know lol
+            'SELECT id, username name, privileges priv '
+            'FROM users WHERE username = %s',
             [username]
         )) and res['id'] else None
 
@@ -86,6 +86,11 @@ class osu(commands.Cog):
                         'as a paramter, only one user can be specified at a time.'
                     )
                     return await ctx.send('\n'.join(ret))
+
+        if any(not u.priv & 1 for u in users) \
+        and not ctx.author.id == self.bot.owner_id:
+            return await ctx.send(
+                "You have insufficient privileges.")
 
         if len(users) > 3:
             return await ctx.send(
@@ -191,7 +196,7 @@ class osu(commands.Cog):
                     # the amount it would have been for an fc
                     # (with acc corrected for misses).
                     if not is_fc:
-                        row['fcPP'] = f"\n▸ \❌{row['nmiss']} ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
+                        row['fcPP'] = f"\n▸ \❌**{row['nmiss']}** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
                         row['comboed'] = '{s_combo:,}/{b_combo:,}x'.format(**row)
                     else:
                         row['fcPP'] = ''
@@ -229,7 +234,7 @@ class osu(commands.Cog):
             e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
             await ctx.send(embed = e)
 
-    @commands.command()
+    @commands.command(aliases = ['rc'])
     @commands.guild_only()
     async def recent(self, ctx: commands.Context) -> None:
         msg = ctx.message.content.split(' ')[1:] # Remove command from content
@@ -255,6 +260,11 @@ class osu(commands.Cog):
                         'as a paramter, only one user can be specified at a time.'
                     )
                     return await ctx.send('\n'.join(ret))
+
+        if any(not u.priv & 1 for u in users) \
+        and not ctx.author.id == self.bot.owner_id:
+            return await ctx.send(
+                "You have insufficient privileges.")
 
         if len(users) > 3:
             return await ctx.send(
