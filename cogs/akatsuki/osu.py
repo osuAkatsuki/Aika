@@ -191,7 +191,7 @@ class osu(commands.Cog):
                     # the amount it would have been for an fc
                     # (with acc corrected for misses).
                     if not is_fc:
-                        row['fcPP'] = f'\n▸ \❌{row['nmiss']} ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)'
+                        row['fcPP'] = f"\n▸ \❌{row['nmiss']} ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
                         row['comboed'] = '{s_combo:,}/{b_combo:,}x'.format(**row)
                     else:
                         row['fcPP'] = ''
