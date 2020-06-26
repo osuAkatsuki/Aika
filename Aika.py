@@ -229,6 +229,9 @@ class Aika(commands.Bot):
         if len(args) == 1 and isinstance(args[0], str):
             kwargs['content'] = args[0]
 
+        if 'embed' not in kwargs: kwargs['embed'] = None
+        if 'content' not in kwargs: kwargs['content'] = None
+
         if hit: # cache hit, edit cached response.
             await (m := hit['resp']).edit(**kwargs)
         else: # cachie miss (or expired), use a new messge.
