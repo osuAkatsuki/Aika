@@ -61,7 +61,7 @@ class Reporting(commands.Cog):
         ]))
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
-        await ctx.send(embed = e)
+        await self.bot.send(ctx, embed = e)
 
 def setup(bot: commands.Bot):
     bot.add_cog(Reporting(bot))

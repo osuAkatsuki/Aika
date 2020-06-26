@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Union, Final, List, Dict
+from typing import Union, Final, List, Dict, Optional
 import discord, asyncio
 from discord.ext import commands, tasks
 from os import chdir, path
@@ -72,6 +72,8 @@ class Aika(commands.Bot):
 
         self.connect_db()
 
+        self.resp_cache = []
+
         self.locked = False # lock aika's commands to only bot owner
 
         for e in self.config.initial_extensions:
@@ -128,6 +130,35 @@ class Aika(commands.Bot):
         if self.config.server_build or message.author.id == self.owner_id:
             await self.process_commands(message)
 
+    async def send(self, ctx: commands.Context,
+                   *args, **kwargs) -> Optional[discord.Message]:
+        # This method's purpose is basically to allow aikato edit old responses
+        # to commands, by caching the request and the response message objects
+        # (and an expiry of 10mins).
+
+        # check cache
+        hit = discord.utils.find(lambda m: m['msg'] == ctx.message, self.resp_cache)
+        current_time = int(time())
+
+        if hit and (expired := (current_time - hit['expire']) > 0):
+            self.resp_cache.remove(hit)
+            hit = False
+
+        if hit: # cache hit, edit cached response.
+            await (m := hit['resp']).edit(**kwargs)
+        else: # cachie miss (or expired), use a new messge.
+            if len(args) == 1 and isinstance(args[0], str):
+                kwargs['content'] = args[0]
+
+            m = await ctx.send(**kwargs)
+            self.resp_cache.append({
+                'msg': ctx.message, # their msg
+                'resp': m, # our msg
+                'expire': current_time + (10)
+            })
+
+        return m
+
     async def on_message_edit(self, before: discord.Message,
                               after: discord.Message) -> None:
         await self.wait_until_ready()
@@ -179,8 +210,8 @@ class Aika(commands.Bot):
             return
 
         elif isinstance(error, commands.DisabledCommand):
-            return await ctx.send(
-                f'{ctx.command} is currently disabled.')
+            return await self.send(
+                ctx, f'{ctx.command} is currently disabled.')
 
         elif isinstance(error, commands.NoPrivateMessage):
             try:
@@ -190,18 +221,17 @@ class Aika(commands.Bot):
                 pass
 
         elif isinstance(error, commands.CommandOnCooldown):
-            return await ctx.send(
-                '{mention} that command is still on cooldown ({retry:.1f}s).'.format(
-                    mention = ctx.author.mention, retry = error.retry_after)
-            )
+            return await self.send(
+                ctx, f'{ctx.author.mention} that command is still ' \
+                     ' on cooldown ({error.retry_after:.1f}s).')
 
         elif isinstance(error, commands.BotMissingPermissions):
-            return await ctx.send(
-                'I have insufficient guild permissions to perform that command.')
+            return await self.send(
+                ctx, 'I have insufficient guild permissions to perform that command.')
 
         elif isinstance(error, commands.MissingPermissions):
-            return await ctx.send(
-                'You have insufficient guild permissions to perform that command.')
+            return await self.send(
+                ctx, 'You have insufficient guild permissions to perform that command.')
 
         print(f'Ignoring exception in command {ctx.command}')
         traceback.print_exception(type(error), error, error.__traceback__)

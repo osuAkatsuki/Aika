@@ -58,24 +58,24 @@ class osu(commands.Cog):
         if '-gm' in msg: # -gm <int>
             if len(msg) < (index := msg.index('-gm')) + 1 \
             or not msg[index + 1].isdecimal():
-                return await ctx.send(
-                    'Invalid syntax!\n> Correct syntax: `!top <-rx, -gm 2> <username/@mention>`.')
+                return await self.bot.send(
+                    ctx, 'Invalid syntax!\n> Correct syntax: `!top <-rx, -gm 2> <username/@mention>`.')
 
             msg.remove('-gm')
             if (gm := int(msg.pop(index))) not in range(2):
-                return await ctx.send('Invalid gamemode (only osu! & osu!taiko supported).')
+                return await self.bot.send('Invalid gamemode (only osu! & osu!taiko supported).')
         else: # no -gm flag present
             gm = 0
 
         if not msg: # Nothing specified, check for account link
             if not all(users := [await self.get_osu(ctx.author.id)]):
-                return await ctx.send(
-                    'You must first link your Akatsuki account with **!linkosu**!')
+                return await self.bot.send(
+                    ctx, 'You must first link your Akatsuki account with **!linkosu**!')
         else: # They sent the user, either by mention or akatsuki username.
             if ctx.message.mentions:
                 if not all(users := [await self.get_osu(i.id) for i in ctx.message.mentions]):
-                    return await ctx.send(
-                        "At least one of those people don't have their Akatsuki accoutnt linked!")
+                    return await self.bot.send(
+                        ctx, "At least one of those people don't have their Akatsuki accoutnt linked!")
             else: # Akatsuki username
                 # They can only specify one name here due to limitations with spaces.
                 # (not going to enforce underscores only).
@@ -85,16 +85,16 @@ class osu(commands.Cog):
                         'Please note that while using an Akatsuki username '
                         'as a paramter, only one user can be specified at a time.'
                     )
-                    return await ctx.send('\n'.join(ret))
+                    return await self.bot.send(ctx, '\n'.join(ret))
 
         if any(not u['priv'] & 1 for u in users) \
         and not ctx.author.id == self.bot.owner_id:
-            return await ctx.send(
-                "You have insufficient privileges.")
+            return await self.bot.send(
+                ctx, "You have insufficient privileges.")
 
         if len(users) > 3:
-            return await ctx.send(
-                'No more than 3 users may be requested at a time!')
+            return await self.bot.send(
+                ctx, 'No more than 3 users may be requested at a time!')
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
@@ -112,7 +112,7 @@ class osu(commands.Cog):
                 'AND s.completed = 3',
                 'ORDER BY s.pp DESC LIMIT 3'
                 ]), [user['id'], gm]
-            )): return await ctx.send('The user has no scores!')
+            )): return await self.bot.send(ctx, 'The user has no scores!')
 
             e = discord.Embed(colour = self.bot.config.embed_colour)
 
@@ -214,7 +214,7 @@ class osu(commands.Cog):
                 if (r := re_match(self.map_regex, row['sn'])):
                     row['sn'] = f"{utils.truncate(r['sn'], 35)} [{utils.truncate(r['diff'], 25)}]"
                 else:
-                    return await ctx.send('<@285190493703503872> broke regex')
+                    return await self.bot.send(ctx, '<@285190493703503872> broke regex')
 
                 row['idx'] = idx + 1
 
@@ -232,7 +232,7 @@ class osu(commands.Cog):
 
             e.set_footer(text = f'Aika v{self.bot.config.version}')
             e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
-            await ctx.send(embed = e)
+            await self.bot.send(ctx, embed = e)
 
     @commands.command(aliases = ['rc'])
     @commands.guild_only()
@@ -243,13 +243,13 @@ class osu(commands.Cog):
 
         if not msg: # Nothing specified, check for account link
             if not all(users := [await self.get_osu(ctx.author.id)]):
-                return await ctx.send(
-                    'You must first link your Akatsuki account with **!linkosu**!')
+                return await self.bot.send(
+                    ctx, 'You must first link your Akatsuki account with **!linkosu**!')
         else: # They sent the user, either by mention or akatsuki username.
             if ctx.message.mentions:
                 if not all(users := [await self.get_osu(i.id) for i in ctx.message.mentions]):
-                    return await ctx.send(
-                        "At least one of those people don't have their Akatsuki accoutnt linked!")
+                    return await self.bot.send(
+                        ctx, "At least one of those people don't have their Akatsuki accoutnt linked!")
             else: # Akatsuki username
                 # They can only specify one name here due to limitations with spaces.
                 # (not going to enforce underscores only).
@@ -259,16 +259,16 @@ class osu(commands.Cog):
                         'Please note that while using an Akatsuki username '
                         'as a paramter, only one user can be specified at a time.'
                     )
-                    return await ctx.send('\n'.join(ret))
+                    return await self.bot.send(ctx, '\n'.join(ret))
 
         if any(not u['priv'] & 1 for u in users) \
         and not ctx.author.id == self.bot.owner_id:
-            return await ctx.send(
-                "You have insufficient privileges.")
+            return await self.bot.send(
+                ctx, "You have insufficient privileges.")
 
         if len(users) > 3:
-            return await ctx.send(
-                'No more than 3 users may be requested at a time!')
+            return await self.bot.send(
+                ctx, 'No more than 3 users may be requested at a time!')
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
@@ -287,7 +287,7 @@ class osu(commands.Cog):
                 'WHERE s.userid = %s',
                 'ORDER BY s.time DESC LIMIT 1']),
                 [user['id']]
-            )): return await ctx.send('The user has no scores!')
+            )): return await self.bot.send(ctx, 'The user has no scores!')
 
             e = discord.Embed(
                 title = res['sn'],
@@ -401,7 +401,7 @@ class osu(commands.Cog):
 
             e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
             e.set_image(url = f"https://assets.ppy.sh/beatmaps/{res['bsid']}/covers/cover.jpg")
-            await ctx.send(embed = e)
+            await self.bot.send(ctx, embed = e)
 
     @commands.command()
     @commands.guild_only()
@@ -413,7 +413,7 @@ class osu(commands.Cog):
                     f'> `!vdiscord {((ctx.author.id << 0o14) | 0x993) >> 1}`'
                 ]))
             except discord.Forbidden:
-                return await ctx.send('\n'.join([
+                return await self.bot.send(ctx, '\n'.join([
                     'I was unable to DM you your code!',
                     'You probably have DMs from non-friends disabled on Discord..'
                 ]))
@@ -425,7 +425,7 @@ class osu(commands.Cog):
 
             await ctx.message.delete()
         else:
-            await ctx.send('\n'.join([
+            await self.bot.send(ctx, '\n'.join([
                 'Your Discord has already been linked to an osu!Akatsuki account!',
                 'If you would like to remove this, please contact cmyui#0425 directly.',
                 f'> **https://akatsuki.pw/u/{user["id"]}**'
@@ -435,10 +435,10 @@ class osu(commands.Cog):
     @commands.guild_only()
     async def next_roleupdate(self, ctx: commands.Context) -> None:
         if not (next_iteration := self.manage_roles.next_iteration):
-            return await ctx.send('Role updates are currently disabled.')
+            return await self.bot.send(ctx, 'Role updates are currently disabled.')
 
         t = int((next_iteration - dt.now(tz.utc)).total_seconds())
-        await ctx.send(f'Next iteration in {t // 60}:{t % 60:02d}.')
+        await self.bot.send(ctx, f'Next iteration in {t // 60}:{t % 60:02d}.')
 
     @tasks.loop(minutes = 15)
     async def manage_roles(self) -> None:

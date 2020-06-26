@@ -32,12 +32,12 @@ class Utility(commands.Cog):
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def uptime(self, ctx: commands.Context) -> None:
         uptime = await self.format_period(time() - self.bot.uptime)
-        await ctx.send(f"I've been running for **{uptime}**.")
+        await self.bot.send(ctx, f"I've been running for **{uptime}**.")
 
     @commands.command(hidden = True)
     @commands.is_owner()
     async def shutdown(self, ctx: commands.Context) -> None:
-        await ctx.send('Night night..')
+        await self.bot.send(ctx, 'Night night..')
         await self.bot.close()
 
     @commands.command(hidden = True)
@@ -49,10 +49,10 @@ class Utility(commands.Cog):
 
         if self.bot.locked:
             self.bot.add_check(commands.is_owner().predicate)
-            await ctx.send('Locked all commands.')
+            await self.bot.send(ctx, 'Locked all commands.')
         else:
             self.bot.remove_check(commands.is_owner().predicate)
-            await ctx.send('Unlocked all commands.')
+            await self.bot.send(ctx, 'Unlocked all commands.')
 
     # TODO: prune_user() or combine logic for a specific user wipe into prune()
 
@@ -61,7 +61,7 @@ class Utility(commands.Cog):
     @commands.has_permissions(manage_messages = True)
     async def prune(self, ctx: commands.Context, *, count) -> None:
         if not count.isdecimal() or (count := int(count)) > 1000:
-            return await ctx.send('\n'.join([
+            return await self.bot.send(ctx, '\n'.join([
                 'Invalid syntax.',
                 '**Correct syntax**: `!prune <count (max 1000)>`.'
             ]))
