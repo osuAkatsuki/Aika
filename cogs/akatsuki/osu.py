@@ -205,9 +205,10 @@ class osu(commands.Cog):
                     return await ctx.send('<@285190493703503872> broke regex')
 
                 scores.append('\n'.join([
-                    '[\⭐{difficulty:.2f}\🎵{bpm:,}\🕰️{length}] [{sn}](https://akatsuki.pw/b/{bid})',
+                    '[{sn}](https://akatsuki.pw/b/{bid})',
                     '▸ {grade} **{acc:,.2f}% {pp}** {mods}{fcPP}',
                     '▸ {{{n100}x100, {n50}x50, {nmiss}xM}} {s_combo:,}/{b_combo:,}x',
+                    '▸ \⭐{difficulty:.2f} \🎵{bpm:,} \🕰️{length}'
                 ]).format(**row))
 
             e.add_field(
