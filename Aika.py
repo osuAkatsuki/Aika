@@ -73,7 +73,6 @@ class Aika(commands.Bot):
         self.connect_db()
 
         self.resp_cache = []
-
         self.locked = False # lock aika's commands to only bot owner
 
         for e in self.config.initial_extensions:
@@ -156,6 +155,10 @@ class Aika(commands.Bot):
         is_cached = lambda m: m['msg'] == msg
 
         if (hit := discord.utils.find(is_cached, self.resp_cache)):
+            try:
+                await hit['resp'].delete()
+            except discord.NotFound:
+                pass # response has already been deleted
             self.resp_cache.remove(hit)
 
     async def on_member_ban(self, guild: discord.Guild,
