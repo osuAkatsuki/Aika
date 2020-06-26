@@ -87,7 +87,7 @@ class osu(commands.Cog):
                     )
                     return await ctx.send('\n'.join(ret))
 
-        if any(not u.priv & 1 for u in users) \
+        if any(not u['priv'] & 1 for u in users) \
         and not ctx.author.id == self.bot.owner_id:
             return await ctx.send(
                 "You have insufficient privileges.")
@@ -261,7 +261,7 @@ class osu(commands.Cog):
                     )
                     return await ctx.send('\n'.join(ret))
 
-        if any(not u.priv & 1 for u in users) \
+        if any(not u['priv'] & 1 for u in users) \
         and not ctx.author.id == self.bot.owner_id:
             return await ctx.send(
                 "You have insufficient privileges.")
