@@ -136,12 +136,14 @@ class osu(commands.Cog):
             for idx, row in enumerate(res):
                 # Iterate through scores, adding them to `scores`.
                 if row['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
-                    row['hit_length'] /= 1.5
+                    row['hit_length'] = int(row['hit_length'] / 1.5)
+                    row['bpm'] = int(row['bpm'] * 1.5)
                 elif row['mods'] & Mods.HALFTIME:
-                    row['hit_length'] *= 1.5
+                    row['hit_length'] = int(row['hit_length'] * 1.5)
+                    row['bpm'] = int(row['bpm'] / 1.5)
 
                 # Length and ranked status as formatted strings
-                row['length'] = utils.seconds_readable(int(row['hit_length']))
+                row['length'] = utils.seconds_readable(row['hit_length'])
                 row['ranked'] = utils.status_readable(row['ranked'])
 
                 # Letter grade
@@ -210,7 +212,7 @@ class osu(commands.Cog):
                     '{idx}. [{sn}](https://akatsuki.pw/b/{bid})',
                     '▸ {grade} **{acc:,.2f}% {pp}** {mods}{fcPP}',
                     '▸ {{{n100}x100, {n50}x50, {nmiss}xM}} {s_combo:,}/{b_combo:,}x',
-                    '▸ \⭐{difficulty:.2f} \🎵{bpm:,} \🕰️{length}'
+                    '▸ \⭐{difficulty:.2f} \🎵{bpm:,} \🕰️{length} AR{ar} OD{od}'
                 ]).format(**row))
 
             e.add_field(
@@ -305,9 +307,11 @@ class osu(commands.Cog):
                 ])
 
             if res['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
-                res['hit_length'] /= 1.5
+                res['hit_length'] = int(res['hit_length'] / 1.5)
+                res['bpm'] = int(res['bpm'] * 1.5)
             elif res['mods'] & Mods.HALFTIME:
-                res['hit_length'] *= 1.5
+                res['hit_length'] = int(res['hit_length'] * 1.5)
+                res['bpm'] = int(res['bpm'] / 1.5)
 
             # Length and ranked status as formatted strings
             res['length'] = utils.seconds_readable(int(res['hit_length']))
