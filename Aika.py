@@ -130,35 +130,6 @@ class Aika(commands.Bot):
         if self.config.server_build or message.author.id == self.owner_id:
             await self.process_commands(message)
 
-    async def send(self, ctx: commands.Context,
-                   *args, **kwargs) -> Optional[discord.Message]:
-        # This method's purpose is basically to allow aika to edit old responses
-        # to commands, by caching the request and the response message objects
-        # (and an expiry of 10mins).
-
-        # check cache
-        hit = discord.utils.find(lambda m: m['msg'] == ctx.message, self.resp_cache)
-        current_time = int(time())
-
-        if hit and (expired := (current_time - hit['expire']) > 0):
-            self.resp_cache.remove(hit)
-            hit = False
-
-        if hit: # cache hit, edit cached response.
-            await (m := hit['resp']).edit(**kwargs)
-        else: # cachie miss (or expired), use a new messge.
-            if len(args) == 1 and isinstance(args[0], str):
-                kwargs['content'] = args[0]
-
-            m = await ctx.send(**kwargs)
-            self.resp_cache.append({
-                'msg': ctx.message, # their msg
-                'resp': m, # our msg
-                'expire': current_time + (10 * 60)
-            })
-
-        return m
-
     async def on_message_edit(self, before: discord.Message,
                               after: discord.Message) -> None:
         await self.wait_until_ready()
@@ -236,10 +207,39 @@ class Aika(commands.Bot):
         print(f'Ignoring exception in command {ctx.command}')
         traceback.print_exception(type(error), error, error.__traceback__)
 
-
     #########
     # Utils #
     #########
+
+    async def send(self, ctx: commands.Context,
+                   *args, **kwargs) -> Optional[discord.Message]:
+        # Light wrapper around ctx.send() to allow for aika to edit
+        # her own responses to commands if a user calls a command in
+        # an edit.
+
+        # check cache
+        hit = discord.utils.find(lambda m: m['msg'] == ctx.message, self.resp_cache)
+        current_time = int(time())
+
+        if hit and (expired := (current_time - hit['expire']) > 0):
+            self.resp_cache.remove(hit)
+            hit = False
+
+
+        if len(args) == 1 and isinstance(args[0], str):
+            kwargs['content'] = args[0]
+
+        if hit: # cache hit, edit cached response.
+            await (m := hit['resp']).edit(**kwargs)
+        else: # cachie miss (or expired), use a new messge.
+            m = await ctx.send(**kwargs)
+            self.resp_cache.append({
+                'msg': ctx.message, # their msg
+                'resp': m, # our msg
+                'expire': current_time + (10 * 60)
+            })
+
+        return m
 
     async def filter_message(self, msg: str) -> bool:
         return any(f in msg for f in self.config.substring_filters) \
