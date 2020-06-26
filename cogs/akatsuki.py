@@ -15,7 +15,7 @@ from re import match
 
 from collections import defaultdict
 
-from Aika import Ansi
+from Aika import Ansi, ContextWrap
 from oppai.owoppai import Owoppai
 
 import utils
@@ -110,7 +110,7 @@ class Akatsuki(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    async def top(self, ctx: commands.Context) -> None:
+    async def top(self, ctx: ContextWrap) -> None:
         msg = ctx.message.content.split(' ')[1:] # Remove command from content
         if (rx := '-rx' in msg): # Check for and remove -rx from command
             msg.remove('-rx')
@@ -118,24 +118,26 @@ class Akatsuki(commands.Cog):
         if '-gm' in msg: # -gm <int>
             if len(msg) < (index := msg.index('-gm')) + 1 \
             or not msg[index + 1].isdecimal():
-                return await self.bot.send(
-                    ctx, 'Invalid syntax!\n> Correct syntax: `!top <-rx, -gm 2> <username/@mention>`.')
+                return await ctx.send('\n'.join([
+                    'Invalid syntax!',
+                    '> Correct syntax: `!top <-rx, -gm 1> <username/@mention>`.'
+                ]))
 
             msg.remove('-gm')
             if (gm := int(msg.pop(index))) not in range(2):
-                return await self.bot.send('Invalid gamemode (only osu! & osu!taiko supported).')
+                return await ctx.send('Invalid gamemode (only osu! & osu!taiko supported).')
         else: # no -gm flag present
             gm = 0
 
         if not msg: # Nothing specified, check for account link
             if not all(users := [await self.get_osu(ctx.author.id)]):
-                return await self.bot.send(
-                    ctx, 'You must first link your Akatsuki account with **!linkosu**!')
+                return await ctx.send(
+                    'You must first link your Akatsuki account with **!linkosu**!')
         else: # They sent the user, either by mention or akatsuki username.
             if ctx.message.mentions:
                 if not all(users := [await self.get_osu(i.id) for i in ctx.message.mentions]):
-                    return await self.bot.send(
-                        ctx, "At least one of those people don't have their Akatsuki accoutnt linked!")
+                    return await ctx.send(
+                        "At least one of those people don't have their Akatsuki accoutnt linked!")
             else: # Akatsuki username
                 # They can only specify one name here due to limitations with spaces.
                 # (not going to enforce underscores only).
@@ -145,16 +147,16 @@ class Akatsuki(commands.Cog):
                         'Please note that while using an Akatsuki username '
                         'as a paramter, only one user can be specified at a time.'
                     )
-                    return await self.bot.send(ctx, '\n'.join(ret))
+                    return await ctx.send('\n'.join(ret))
 
         if any(not u['priv'] & 1 for u in users) \
         and not ctx.author.id == self.bot.owner_id:
-            return await self.bot.send(
-                ctx, "You have insufficient privileges.")
+            return await ctx.send(
+                "You have insufficient privileges.")
 
         if len(users) > 3:
-            return await self.bot.send(
-                ctx, 'No more than 3 users may be requested at a time!')
+            return await ctx.send(
+                'No more than 3 users may be requested at a time!')
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
@@ -172,7 +174,7 @@ class Akatsuki(commands.Cog):
                 'AND s.completed = 3',
                 'ORDER BY s.pp DESC LIMIT 3'
                 ]), [user['id'], gm]
-            )): return await self.bot.send(ctx, 'The user has no scores!')
+            )): return await ctx.send('The user has no scores!')
 
             e = discord.Embed(colour = self.bot.config.embed_colour)
 
@@ -277,7 +279,7 @@ class Akatsuki(commands.Cog):
                 if (r := match(utils.regexes['song_name'], row['sn'])):
                     row['sn'] = f"{utils.truncate(r['sn'], 35)} [{utils.truncate(r['diff'], 25)}]"
                 else:
-                    return await self.bot.send(ctx, '<@285190493703503872> broke regex')
+                    return await ctx.send('<@285190493703503872> broke regex')
 
                 row['idx'] = idx + 1
 
@@ -295,24 +297,24 @@ class Akatsuki(commands.Cog):
 
             e.set_footer(text = f'Aika v{self.bot.config.version}')
             e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
-            await self.bot.send(ctx, embed = e)
+            await ctx.send(embed = e)
 
     @commands.command(aliases = ['rc'])
     @commands.guild_only()
-    async def recent(self, ctx: commands.Context) -> None:
+    async def recent(self, ctx: ContextWrap) -> None:
         msg = ctx.message.content.split(' ')[1:] # Remove command from content
         if (rx := '-rx' in msg): # Check for and remove -rx from command
             msg.remove('-rx')
 
         if not msg: # Nothing specified, check for account link
             if not all(users := [await self.get_osu(ctx.author.id)]):
-                return await self.bot.send(
-                    ctx, 'You must first link your Akatsuki account with **!linkosu**!')
+                return await ctx.send(
+                    'You must first link your Akatsuki account with **!linkosu**!')
         else: # They sent the user, either by mention or akatsuki username.
             if ctx.message.mentions:
                 if not all(users := [await self.get_osu(i.id) for i in ctx.message.mentions]):
-                    return await self.bot.send(
-                        ctx, "At least one of those people don't have their Akatsuki accoutnt linked!")
+                    return await ctx.send(
+                        "At least one of those people don't have their Akatsuki accoutnt linked!")
             else: # Akatsuki username
                 # They can only specify one name here due to limitations with spaces.
                 # (not going to enforce underscores only).
@@ -322,16 +324,16 @@ class Akatsuki(commands.Cog):
                         'Please note that while using an Akatsuki username '
                         'as a paramter, only one user can be specified at a time.'
                     )
-                    return await self.bot.send(ctx, '\n'.join(ret))
+                    return await ctx.send('\n'.join(ret))
 
         if any(not u['priv'] & 1 for u in users) \
         and not ctx.author.id == self.bot.owner_id:
-            return await self.bot.send(
-                ctx, "You have insufficient privileges.")
+            return await ctx.send(
+                "You have insufficient privileges.")
 
         if len(users) > 3:
-            return await self.bot.send(
-                ctx, 'No more than 3 users may be requested at a time!')
+            return await ctx.send(
+                'No more than 3 users may be requested at a time!')
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
@@ -350,7 +352,7 @@ class Akatsuki(commands.Cog):
                 'WHERE s.userid = %s',
                 'ORDER BY s.time DESC LIMIT 1']),
                 [user['id']]
-            )): return await self.bot.send(ctx, 'The user has no scores!')
+            )): return await ctx.send('The user has no scores!')
 
             e = discord.Embed(
                 title = res['sn'],
@@ -466,11 +468,11 @@ class Akatsuki(commands.Cog):
 
             e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
             e.set_image(url = f"https://assets.ppy.sh/beatmaps/{res['bsid']}/covers/cover.jpg")
-            await self.bot.send(ctx, embed = e)
+            await ctx.send(embed = e)
 
     @commands.command()
     @commands.guild_only()
-    async def linkosu(self, ctx: commands.Context) -> None:
+    async def linkosu(self, ctx: ContextWrap) -> None:
         if not (user := await self.get_osu(ctx.author.id)):
             try: # Send PM first, since if we fail we need to warn user.
                 await ctx.author.send('\n'.join([
@@ -478,7 +480,7 @@ class Akatsuki(commands.Cog):
                     f'> `!vdiscord {((ctx.author.id << 0o14) | 0x993) >> 1}`'
                 ]))
             except discord.Forbidden:
-                return await self.bot.send(ctx, '\n'.join([
+                return await ctx.send('\n'.join([
                     'I was unable to DM you your code!',
                     'You probably have DMs from non-friends disabled on Discord..'
                 ]))
@@ -490,7 +492,7 @@ class Akatsuki(commands.Cog):
 
             await ctx.message.delete()
         else:
-            await self.bot.send(ctx, '\n'.join([
+            await ctx.send('\n'.join([
                 'Your Discord has already been linked to an osu!Akatsuki account!',
                 'If you would like to remove this, please contact cmyui#0425 directly.',
                 f'> **https://akatsuki.pw/u/{user["id"]}**'
@@ -498,12 +500,12 @@ class Akatsuki(commands.Cog):
 
     @commands.command(hidden = True)
     @commands.guild_only()
-    async def next_roleupdate(self, ctx: commands.Context) -> None:
+    async def next_roleupdate(self, ctx: ContextWrap) -> None:
         if not (next_iteration := self.manage_roles.next_iteration):
-            return await self.bot.send(ctx, 'Role updates are currently disabled.')
+            return await ctx.send('Role updates are currently disabled.')
 
         t = int((next_iteration - dt.now(tz.utc)).total_seconds())
-        await self.bot.send(ctx, f'Next iteration in {t // 60}:{t % 60:02d}.')
+        await ctx.send(f'Next iteration in {t // 60}:{t % 60:02d}.')
 
     @tasks.loop(minutes = 15)
     async def manage_roles(self) -> None:
@@ -554,7 +556,7 @@ class Akatsuki(commands.Cog):
     @commands.command()
     @commands.guild_only()
     @commands.has_permissions(manage_messages = True)
-    async def reporting_embed(self, ctx: commands.Context) -> None:
+    async def reporting_embed(self, ctx: ContextWrap) -> None:
         e = discord.Embed(
             colour = self.bot.config.embed_colour,
             title = 'Welcome to the player reporting channel!',
@@ -575,7 +577,7 @@ class Akatsuki(commands.Cog):
         ]))
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
-        await self.bot.send(ctx, embed = e)
+        await ctx.send(embed = e)
 
 
 def setup(bot: commands.Bot):

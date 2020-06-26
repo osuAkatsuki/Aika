@@ -8,7 +8,7 @@ from time import time
 from random import randrange
 
 import utils
-from Aika import Leaderboard
+from Aika import Leaderboard, ContextWrap
 
 class User(commands.Cog):
     def __init__(self, bot):
@@ -131,14 +131,14 @@ class User(commands.Cog):
     @commands.command(aliases = ['profile', 'u'])
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
-    async def user(self, ctx: commands.Context) -> None:
+    async def user(self, ctx: ContextWrap) -> None:
         if not await self.user_exists(ctx.author.id):
             await self.create_user(ctx.author.id)
 
         not_aika = lambda u: u != self.bot.user
 
         if len(mentions := list(filter(not_aika, ctx.message.mentions))) > 1:
-            return await self.bot.send(ctx, '\n'.join([
+            return await ctx.send('\n'.join([
                 'Invalid syntax - only one user can be fetched at a time.',
                 '**Correct syntax**: `!user (optional: @user)`'
             ]))
@@ -181,20 +181,22 @@ class User(commands.Cog):
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         e.set_thumbnail(url = target.avatar_url)
-        await self.bot.send(ctx, embed = e) # TODO: cmyui.codes/u/ profiles?
+        await ctx.send(embed = e) # TODO: cmyui.codes/u/ profiles?
 
     @commands.command(aliases = ['lvreq'])
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
-    async def levelreq(self, ctx: commands.Context, *, _lv) -> None:
+    async def levelreq(self, ctx: ContextWrap, *, _lv) -> None:
         if not (level := utils.try_parse_float(_lv)):
-            return await self.bot.send(
-                ctx, 'Invalid syntax.\n**Correct syntax**: `!lvreq <level>`')
+            return await ctx.send('\n'.join([
+                'Invalid syntax.',
+                '> Correct syntax: `!lvreq <level>`.'
+            ]))
 
         total_xp = await self.calculate_xp(level)
         current_xp = await self.get_xp(ctx.author.id)
         pc = (current_xp / total_xp) * 100.0 if current_xp < total_xp else 100.0
-        await self.bot.send(ctx, '\n'.join([
+        await ctx.send('\n'.join([
             f'**Level progression to {level:.2f}.**',
             f'> `{current_xp:,}/{total_xp:,}xp ({pc:.2f}%)`'
         ]))
@@ -202,12 +204,12 @@ class User(commands.Cog):
     @commands.command(aliases = ['deleterboards', 'dlb'])
     @commands.guild_only()
     @commands.cooldown(3, 5, commands.BucketType.user)
-    async def deleterboard(self, ctx: commands.Context) -> None:
+    async def deleterboard(self, ctx: ContextWrap) -> None:
         if not (res := self.bot.db.fetchall(
             'SELECT id, deleted_messages FROM aika_users '
             'WHERE deleted_messages > 0 ORDER BY deleted_messages '
             'DESC LIMIT 10')
-        ): return await self.bot.send(ctx, 'Not a single soul has ever told a lie..')
+        ): return await ctx.send('Not a single soul has ever told a lie..')
 
         leaderboard = Leaderboard([{
             'title': user.name if (
@@ -222,12 +224,12 @@ class User(commands.Cog):
             description = repr(leaderboard))
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
-        await self.bot.send(ctx, embed = e)
+        await ctx.send(embed = e)
 
     @commands.command(aliases = ['lvtop', 'xptop', 'xplb', 'lb', 'xpleaderboard'])
     @commands.guild_only()
     @commands.cooldown(3, 5, commands.BucketType.user)
-    async def leaderboard(self, ctx: commands.Context) -> None:
+    async def leaderboard(self, ctx: ContextWrap) -> None:
         if not (res := self.bot.db.fetchall(
             'SELECT id, xp FROM aika_users '
             'WHERE xp > 0 ORDER BY xp DESC LIMIT 10')):
@@ -246,15 +248,15 @@ class User(commands.Cog):
             description = repr(leaderboard))
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
-        await self.bot.send(ctx, embed = e)
+        await ctx.send(embed = e)
 
     @commands.command(aliases = ['lv', 'getlv', 'checklv'])
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
-    async def level(self, ctx: commands.Context) -> None:
+    async def level(self, ctx: ContextWrap) -> None:
         xp = await self.get_xp(ctx.author.id)
         lv = await self.calculate_level(xp)
-        await self.bot.send(ctx, f'You are currently Lv. {lv:.2f} ({xp:,}xp).')
+        await ctx.send(f'You are currently Lv. {lv:.2f} ({xp:,}xp).')
 
     # Voice Chat XP
     @tasks.loop(minutes = 2.5)

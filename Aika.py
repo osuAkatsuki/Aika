@@ -16,12 +16,12 @@ from enum import IntEnum
 
 from db import dbConnector
 from mysql.connector import errorcode, Error as SQLError
-import utils
+from utils import asciify, truncate
 
 class Leaderboard:
     def __init__(self, listings: List[Dict[str, Union[int, str]]]) -> None:
         self.listings = [{
-            'title': utils.asciify(utils.truncate(i['title'], 12)),
+            'title': asciify(truncate(i['title'], 12)),
             'value': i['value']
         } for i in listings]
 
@@ -63,12 +63,48 @@ class Ansi(IntEnum):
     def __repr__(self) -> str:
         return f'\x1b[{self.value}m'
 
+# So like what if i wrote my own context class so that
+# i can use the ctx.send(...) syntax instead of using
+# self.bot.send(ctx, ...) lol
+class ContextWrap(commands.Context):
+    async def send(self, *args, **kwargs) -> Optional[discord.Message]:
+        # Light wrapper around ctx.send() to allow for aika to edit
+        # her own responses to commands if a user calls a command in
+        # an edit.
+
+        # check cache
+        hit = discord.utils.find(lambda m: m['msg'] == self.message, self.bot.resp_cache)
+        current_time = int(time())
+
+        if hit and (expired := (current_time - hit['expire']) > 0):
+            self.bot.resp_cache.remove(hit)
+            hit = False
+
+        if len(args) == 1 and isinstance(args[0], str):
+            kwargs['content'] = args[0]
+
+        kwargs['embed'] = kwargs.pop('embed', None)
+        kwargs['content'] = kwargs.pop('content', None)
+
+        if hit: # cache hit, edit cached response.
+            await (m := hit['resp']).edit(**kwargs)
+        else: # cachie miss (or expired), use a new messge.
+            m = await super().send(**kwargs)
+            self.bot.resp_cache.append({
+                'msg': self.message, # their msg
+                'resp': m, # our msg
+                'expire': current_time + (10 * 60)
+            })
+
+        return m
+
 class Aika(commands.Bot):
     def __init__(self) -> None:
         super().__init__(
             command_prefix = commands.when_mentioned_or(
                              self.config.command_prefix),
-            owner_id = self.config.discord_owner)
+            owner_id = self.config.discord_owner,
+            help_command = None) # Disabled until I write my own
 
         self.connect_db()
 
@@ -129,8 +165,9 @@ class Aika(commands.Bot):
         if self.config.server_build or msg.author.id == self.owner_id:
             await self.process_commands(msg)
 
-    async def on_message_edit(self, before: discord.Message,
-                              after: discord.Message) -> None:
+    async def on_message_edit(
+        self, before: discord.Message,
+        after: discord.Message) -> None:
         await self.wait_until_ready()
         if not after.content or after.author.bot \
         or (before.content == after.content and before.embeds != after.embeds):
@@ -161,8 +198,9 @@ class Aika(commands.Bot):
                 pass # response has already been deleted
             self.resp_cache.remove(hit)
 
-    async def on_member_ban(self, guild: discord.Guild,
-                            user: Union[discord.Member, discord.User]) -> None:
+    async def on_member_ban(
+        self, guild: discord.Guild,
+        user: Union[discord.Member, discord.User]) -> None:
         print(f'{Ansi.GREEN!r}{user} was banned from {guild}.{Ansi.RESET!r}')
 
     async def on_ready(self) -> None:
@@ -177,8 +215,9 @@ class Aika(commands.Bot):
         if event != 'on_message':
             print(f'{Ansi.LIGHT_RED!r}ERR{Ansi.RESET!r}: {event}')
 
-    async def on_command_error(self, ctx: commands.Context,
-                               error: commands.errors.CommandError) -> None:
+    async def on_command_error(
+        self, ctx: ContextWrap,
+        error: commands.errors.CommandError) -> None:
         if hasattr(ctx.command, 'on_error'):
             return
 
@@ -192,8 +231,8 @@ class Aika(commands.Bot):
             return
 
         elif isinstance(error, commands.DisabledCommand):
-            return await self.send(
-                ctx, f'{ctx.command} is currently disabled.')
+            return await ctx.send(
+                f'{ctx.command} is currently disabled.')
 
         elif isinstance(error, commands.NoPrivateMessage):
             try:
@@ -203,56 +242,34 @@ class Aika(commands.Bot):
                 pass
 
         elif isinstance(error, commands.CommandOnCooldown):
-            return await self.send(
-                ctx, f'{ctx.author.mention} that command is still ' \
-                     ' on cooldown ({error.retry_after:.1f}s).')
+            return await ctx.send(
+                '{u} that commands is still on cooldown ({t:.1f}s)'.format(
+                    u = ctx.author.mention, t = error.retry_after))
 
         elif isinstance(error, commands.BotMissingPermissions):
-            return await self.send(
-                ctx, 'I have insufficient guild permissions to perform that command.')
+            return await ctx.send(
+                'I have insufficient guild permissions to perform that command.')
 
         elif isinstance(error, commands.MissingPermissions):
-            return await self.send(
-                ctx, 'You have insufficient guild permissions to perform that command.')
+            return await ctx.send(
+                'You have insufficient guild permissions to perform that command.')
 
         print(f'Ignoring exception in command {ctx.command}')
         traceback.print_exception(type(error), error, error.__traceback__)
 
+    ########
+    # Misc #
+    ########
+
+    async def process_commands(self, message):
+        if message.author.bot: return
+
+        ctx = await self.get_context(message, cls = ContextWrap)
+        await self.invoke(ctx)
+
     #########
     # Utils #
     #########
-
-    async def send(self, ctx: commands.Context,
-                   *args, **kwargs) -> Optional[discord.Message]:
-        # Light wrapper around ctx.send() to allow for aika to edit
-        # her own responses to commands if a user calls a command in
-        # an edit.
-
-        # check cache
-        hit = discord.utils.find(lambda m: m['msg'] == ctx.message, self.resp_cache)
-        current_time = int(time())
-
-        if hit and (expired := (current_time - hit['expire']) > 0):
-            self.resp_cache.remove(hit)
-            hit = False
-
-        if len(args) == 1 and isinstance(args[0], str):
-            kwargs['content'] = args[0]
-
-        kwargs['embed'] = kwargs.pop('embed', None)
-        kwargs['content'] = kwargs.pop('content', None)
-
-        if hit: # cache hit, edit cached response.
-            await (m := hit['resp']).edit(**kwargs)
-        else: # cachie miss (or expired), use a new messge.
-            m = await ctx.send(**kwargs)
-            self.resp_cache.append({
-                'msg': ctx.message, # their msg
-                'resp': m, # our msg
-                'expire': current_time + (10 * 60)
-            })
-
-        return m
 
     async def filter_message(self, msg: str) -> bool:
         return any(f in msg for f in self.config.substring_filters) \
