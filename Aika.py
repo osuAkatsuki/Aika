@@ -18,8 +18,10 @@ from db import dbConnector
 from mysql.connector import errorcode, Error as SQLError
 from utils import asciify, truncate
 
+Listing = Dict[str, Union[int, float, str]]
+
 class Leaderboard:
-    def __init__(self, listings: List[Dict[str, Union[int, str]]]) -> None:
+    def __init__(self, listings: List[Listing]) -> None:
         self.listings = [{
             'title': asciify(truncate(i['title'], 12)),
             'value': i['value']
@@ -63,39 +65,42 @@ class Ansi(IntEnum):
     def __repr__(self) -> str:
         return f'\x1b[{self.value}m'
 
-# So like what if i wrote my own context class so that
-# i can use the ctx.send(...) syntax instead of using
-# self.bot.send(ctx, ...) lol
+# Light wrapper around commands.Context to allow for one of Aika's
+# special features: the ability to edit previous messages to edit
+# Aika's response (and specifically for Aika to be able to edit
+# their previous) response rather than just creating a new one.
+# With: ctx.send(...) // Without: self.bot.send(ctx, ...)
 class ContextWrap(commands.Context):
     async def send(self, *args, **kwargs) -> Optional[discord.Message]:
-        # Light wrapper around ctx.send() to allow for aika to edit
-        # her own responses to commands if a user calls a command in
-        # an edit.
+        # Check for a hit in our cache.
+        is_cached = lambda m: m['msg'] == self.message
+        hit = discord.utils.find(is_cached, self.bot.resp_cache)
 
-        # check cache
-        hit = discord.utils.find(lambda m: m['msg'] == self.message, self.bot.resp_cache)
-        current_time = int(time())
-
-        if hit and (expired := (current_time - hit['expire']) > 0):
+        if hit and (expired := (int(time()) - hit['expire']) > 0):
+            # We have a hit, but it's expired.
+            # Remove it from the cache, and use a new msg.
             self.bot.resp_cache.remove(hit)
             hit = False
 
         if len(args) == 1 and isinstance(args[0], str):
+            # Allows for the sytax: ctx.send('content')
             kwargs['content'] = args[0]
 
+        # Clear previous msg params.
         kwargs['embed'] = kwargs.pop('embed', None)
         kwargs['content'] = kwargs.pop('content', None)
 
-        if hit: # cache hit, edit cached response.
+        if hit: # cache hit - edit.
             await (m := hit['resp']).edit(**kwargs)
-        else: # cachie miss (or expired), use a new messge.
+        else: # cache miss (or expired) - send.
             m = await super().send(**kwargs)
             self.bot.resp_cache.append({
                 'msg': self.message, # their msg
                 'resp': m, # our msg
-                'expire': current_time + (10 * 60)
+                'expire': int(time()) + (5 * 60)
             })
 
+        # Return our response message object.
         return m
 
 class Aika(commands.Bot):
@@ -109,7 +114,6 @@ class Aika(commands.Bot):
         self.connect_db()
 
         self.resp_cache = []
-        self.locked = False # lock aika's commands to only bot owner
 
         for e in self.config.initial_extensions:
             try:
@@ -149,15 +153,13 @@ class Aika(commands.Bot):
         if not msg.content or msg.author.bot:
             return
 
-        filtered = (self.config.filters or self.config.substring_filters) \
-            and await self.filter_message(msg.content.lower())
+        filtered = await self.filter_content(msg.content.lower())
 
-        if self.config.verbose_console:
-            colour = Ansi.LIGHT_MAGENTA if msg.author.bot \
-                else Ansi.LIGHT_RED if filtered \
-                else Ansi.LIGHT_CYAN
+        colour = Ansi.LIGHT_MAGENTA if msg.author.bot \
+            else Ansi.LIGHT_RED if filtered \
+            else Ansi.LIGHT_CYAN
 
-            await self.print_console(msg, colour)
+        await self.print_console(msg, colour)
 
         if filtered:
             return await msg.delete()
@@ -169,16 +171,15 @@ class Aika(commands.Bot):
         self, before: discord.Message,
         after: discord.Message) -> None:
         await self.wait_until_ready()
+
         if not after.content or after.author.bot \
-        or (before.content == after.content and before.embeds != after.embeds):
+        or before.content == after.content:
             return
 
-        filtered = self.config.filters \
-            and await self.filter_message(after.content.lower())
+        filtered = await self.filter_content(after.content.lower())
 
-        if self.config.verbose_console:
-            colour = Ansi.LIGHT_RED if filtered else Ansi.LIGHT_YELLOW
-            await self.print_console(after, colour)
+        colour = Ansi.LIGHT_RED if filtered else Ansi.LIGHT_YELLOW
+        await self.print_console(after, colour)
 
         if filtered:
             return await after.delete()
@@ -211,6 +212,7 @@ class Aika(commands.Bot):
         print('{col}Ready{reset}: {user} ({userid})'.format(
               col = repr(Ansi.GREEN), reset = repr(Ansi.RESET),
               user = self.user, userid = self.user.id))
+
     async def on_error(self, event, args, **kwargs) -> None:
         if event != 'on_message':
             print(f'{Ansi.LIGHT_RED!r}ERR{Ansi.RESET!r}: {event}')
@@ -271,7 +273,10 @@ class Aika(commands.Bot):
     # Utils #
     #########
 
-    async def filter_message(self, msg: str) -> bool:
+    async def filter_content(self, msg: str) -> bool:
+        if not (self.config.filters or self.config.substring_filters):
+            return False # filters disabled
+
         return any(f in msg for f in self.config.substring_filters) \
             or any(s in self.config.filters for s in msg.split())
 
@@ -282,11 +287,6 @@ class Aika(commands.Bot):
             chan = msg.channel, gray = Ansi.GRAY, author = msg.author,
             reset = Ansi.RESET, msg = msg.clean_content.replace('\u001b', '')
         ))
-
-    @staticmethod
-    async def fetch(session, url):
-        async with session.get(url) as resp:
-            return await resp.text() if resp.status == 200 else None
 
     @tasks.loop(seconds = 15)
     async def bg_loop(self) -> None:
@@ -315,10 +315,12 @@ class Aika(commands.Bot):
             self.bg_loop.start()
             super().run(self.config.discord_token, reconnect=True)
         finally:
-            self.bg_loop.stop()
+            self.bg_loop.cancel()
 
-    async def close(self):
-        await super().close()
+    @staticmethod
+    async def fetch(session, url):
+        async with session.get(url) as resp:
+            return await resp.text() if resp.status == 200 else None
 
     @property
     def config(self):

@@ -42,20 +42,6 @@ class Utility(commands.Cog):
         await ctx.send('Night night..')
         await self.bot.close()
 
-    @commands.command(hidden = True)
-    @commands.is_owner()
-    async def lock(self, ctx: ContextWrap) -> None:
-        # TODO: make this server-based rather than bot-based
-
-        self.bot.locked = not self.bot.locked
-
-        if self.bot.locked:
-            self.bot.add_check(commands.is_owner().predicate)
-            await ctx.send('Locked all commands.')
-        else:
-            self.bot.remove_check(commands.is_owner().predicate)
-            await ctx.send('Unlocked all commands.')
-
     # TODO: prune_user() or combine logic for a specific user wipe into prune()
 
     @commands.command(hidden = True)
