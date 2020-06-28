@@ -15,10 +15,12 @@ discord_owner = 123456789012345678
 discord_token = 'your token here owo'
 
 # filter for single whitespace-separated words in chat.
-filters = {'single', 'word', 'matches'}
+# {'single', 'word', 'matches'}
+filters = {}
 
 # filter for substring matches, no whitespace separation required.
-substring_filters = {'sub w-', 'ord', 'matc', 'hes'}
+# {'sub w-', 'ord', 'matc', 'hes'}
+substring_filters = {}
 
 # mysql database information
 mysql = {
@@ -29,7 +31,7 @@ mysql = {
 }
 
 # Aika's version #
-version = 3.0
+version = 1.0
 
 # Thumbnails to be used throughout the program in embeds.
 thumbnails = {

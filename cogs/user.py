@@ -239,6 +239,35 @@ class User(commands.Cog):
 
     # TODO: re-create global leaderboard for all servers
 
+    @commands.command(aliases = ['aika'])
+    async def botinfo(self, ctx: ContextWrap) -> None:
+        e = discord.Embed(
+            colour = self.bot.config.embed_colour,
+        )
+
+        e.set_author(
+            name = f'Aika (Aika#7862)',
+            url = 'https://github.com/cmyui/Aika',
+            icon_url = 'https://duyt4h9nfnj50.cloudfront.net/resized/b0b1fbd09b9c0472cb5c8b977e34ab6f-w550-b4.jpg')
+
+        e.add_field(
+            name = 'Introduction',
+            value = \
+                "I'm a Discord bot written by [cmyui](https://github.com/cmyui) "
+                "both as an official bot for [Akatsuki](https://akatsuki.pw), and "
+                "also just to be a solid general-purpose bot.\n\n"
+
+                "I have some pretty cool features you might find cool too.. Especially "
+                "if you're looking for Akatsuki commands, of course..\n\n"
+
+                "[Read up on my commands](https://github.com/cmyui/Aika#commands)\n"
+                "[Support development](https://akatsuki.pw/donate)\n"
+                "[**Invite me to your server**](https://discord.com/api/oauth2/authorize?client_id=702310727515504710&permissions=0&scope=bot)\n"
+        )
+        e.set_thumbnail(url = 'https://cdn.discordapp.com/avatars/285190493703503872/b1503731c4cf2f173df883aa57ff45d7.webp?size=1024')
+        e.set_footer(text = f'Aika v{self.bot.config.version}')
+        await ctx.send(embed = e)
+
     @commands.command(aliases = ['lvtop', 'xptop', 'xplb', 'lb', 'xpleaderboard'])
     @commands.guild_only()
     @commands.cooldown(3, 5, commands.BucketType.user)
