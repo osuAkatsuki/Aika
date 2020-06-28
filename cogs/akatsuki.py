@@ -181,7 +181,7 @@ class Akatsuki(commands.Cog):
                 f'FROM {table} s',
                 'LEFT JOIN beatmaps b USING(beatmap_md5)',
                 'WHERE s.userid = %s AND s.play_mode = %s',
-                'AND s.completed = 3',
+                'AND b.ranked = 2 AND s.completed = 3',
                 'ORDER BY s.pp DESC LIMIT 3'
                 ]), [user['id'], gm]
             )): return await ctx.send('The user has no scores!')
@@ -362,7 +362,7 @@ class Akatsuki(commands.Cog):
 
                 f'FROM {table} s',
                 'LEFT JOIN beatmaps b USING(beatmap_md5)',
-                'WHERE s.userid = %s',
+                'WHERE b.ranked = 2 AND s.userid = %s',
                 'ORDER BY s.time DESC LIMIT 1']),
                 [user['id']]
             )): return await ctx.send('The user has no scores!')
