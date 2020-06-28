@@ -265,14 +265,6 @@ class User(commands.Cog):
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e)
 
-    @commands.command(aliases = ['lv', 'getlv', 'checklv'])
-    @commands.cooldown(3, 5, commands.BucketType.user)
-    @commands.guild_only()
-    async def level(self, ctx: ContextWrap) -> None:
-        xp = await self.get_xp(ctx.author.id, ctx.guild.id)
-        lv = await self.calculate_level(xp)
-        await ctx.send(f'You are currently Lv. {lv:.2f} ({xp:,}xp).')
-
     # Voice Chat XP
     @tasks.loop(minutes = 2.5)
     async def voice_xp(self) -> None:
