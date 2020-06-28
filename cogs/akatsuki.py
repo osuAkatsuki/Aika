@@ -18,8 +18,13 @@ from collections import defaultdict
 from Aika import Ansi, ContextWrap
 from oppai.owoppai import Owoppai
 
-import utils
-from utils import Mods
+from utils import (
+    Mods, akatsuki_only, gamemode_readable, seconds_readable,
+    accuracy_grade, calc_accuracy_std, calc_accuracy_taiko,
+    mods_readable, regexes, truncate, status_readable,
+    seconds_readable_full
+)
+
 
 class Akatsuki(commands.Cog):
     def __init__(self, bot):
@@ -43,6 +48,9 @@ class Akatsuki(commands.Cog):
     async def on_message(self, msg: discord.Message) -> None:
         await self.bot.wait_until_ready()
         if not msg.content or msg.author.bot:
+            return
+
+        if msg.guild.id != self.bot.config.akatsuki['id']:
             return
 
         if msg.channel.id == self.bot.config.akatsuki['channels']['verify']:
@@ -191,7 +199,7 @@ class Akatsuki(commands.Cog):
             plural = lambda s: f"{s}'" if s[-1] == 's' else f"{s}'s"
 
             e.set_author(
-                name = f"{plural(_name)} top 3 {utils.gamemode_readable(gm)} plays.",
+                name = f"{plural(_name)} top 3 {gamemode_readable(gm)} plays.",
                 url = f"https://akatsuki.pw/u/{user['id']}?mode={gm}&rx={int(rx)}",
                 icon_url = f"https://a.akatsuki.pw/{user['id']}")
 
@@ -209,15 +217,15 @@ class Akatsuki(commands.Cog):
                     row['bpm'] = int(row['bpm'] / 1.5)
 
                 # Length and ranked status as formatted strings
-                row['length'] = utils.seconds_readable(row['hit_length'])
-                row['ranked'] = utils.status_readable(row['ranked'])
+                row['length'] = seconds_readable(row['hit_length'])
+                row['ranked'] = status_readable(row['ranked'])
 
                 # Letter grade
                 # This is done.. stragely
                 # TODO: don't do strangely?
                 row['grade'] = self.bot.get_emoji(
                     self.bot.config.akatsuki['grade_emojis'][
-                        utils.accuracy_grade(
+                        accuracy_grade(
                             gm, row['acc'], row['mods'],
                             row['n300'], row['n100'], row['n50'],
                             row['nmiss']) if row['completed'] != 0 else 'F'
@@ -234,12 +242,12 @@ class Akatsuki(commands.Cog):
                 if is_fc:
                     fcAcc = row['acc']
                 else:
-                    fcAcc = (utils.calc_accuracy_std(
+                    fcAcc = (calc_accuracy_std(
                         n300 = row['n300'],
                         n100 = row['n100'],
                         n50 = row['n50'],
                         nmiss = 0) if gm == 0 \
-                    else utils.calc_accuracy_taiko(
+                    else calc_accuracy_taiko(
                         n300 = row['n300'],
                         n150 = row['n100'], # lol
                         nmiss = 0)) * 100.0
@@ -271,12 +279,12 @@ class Akatsuki(commands.Cog):
 
                 # Mods string
                 if row['mods']:
-                    row['mods'] = f"+{utils.mods_readable(row['mods'])}"
+                    row['mods'] = f"+{mods_readable(row['mods'])}"
                 else:
                     row['mods'] = 'NM'
 
-                if (r := match(utils.regexes['song_name'], row['sn'])):
-                    row['sn'] = f"{utils.truncate(r['sn'], 35)} [{utils.truncate(r['diff'], 25)}]"
+                if (r := match(regexes['song_name'], row['sn'])):
+                    row['sn'] = f"{truncate(r['sn'], 35)} [{truncate(r['diff'], 25)}]"
                 else:
                     return await ctx.send('<@285190493703503872> broke regex')
 
@@ -379,7 +387,7 @@ class Akatsuki(commands.Cog):
             # TODO: don't do strangely?
             res['grade'] = self.bot.get_emoji(
                 self.bot.config.akatsuki['grade_emojis'][
-                    utils.accuracy_grade(
+                    accuracy_grade(
                         res['mode'], res['acc'], res['mods'],
                         res['n300'], res['n100'], res['n50'],
                         res['nmiss']) if res['completed'] != 0 else 'F'
@@ -393,8 +401,8 @@ class Akatsuki(commands.Cog):
                 res['bpm'] = int(res['bpm'] / 1.5)
 
             # Length and ranked status as formatted strings
-            res['length'] = utils.seconds_readable(int(res['hit_length']))
-            res['ranked'] = utils.status_readable(res['ranked'])
+            res['length'] = seconds_readable(int(res['hit_length']))
+            res['ranked'] = status_readable(res['ranked'])
 
             # Use oppai to calculate pp if FC,
             # along with star rating with mods.
@@ -406,12 +414,12 @@ class Akatsuki(commands.Cog):
             if is_fc:
                 fcAcc = res['acc']
             else:
-                fcAcc = (utils.calc_accuracy_std(
+                fcAcc = (calc_accuracy_std(
                     n300 = res['n300'],
                     n100 = res['n100'],
                     n50 = res['n50'],
                     nmiss = 0) if res['mode'] == 0 \
-                else utils.calc_accuracy_taiko(
+                else calc_accuracy_taiko(
                     n300 = res['n300'],
                     n150 = res['n100'], # lol
                     nmiss = 0)) * 100.0
@@ -438,7 +446,7 @@ class Akatsuki(commands.Cog):
 
             # Mods string
             if res['mods']:
-                res['mods'] = f"+{utils.mods_readable(res['mods'])}"
+                res['mods'] = f"+{mods_readable(res['mods'])}"
             else:
                 res['mods'] = 'NM'
 
@@ -459,7 +467,7 @@ class Akatsuki(commands.Cog):
                 )
 
             # format time played for the footer
-            played_at = utils.seconds_readable_full(int(time() - res['time']))
+            played_at = seconds_readable_full(int(time() - res['time']))
             e.set_footer(text = ' | '.join([
                 f'Aika v{self.bot.config.version}',
                 f'Score submitted {played_at} ago.'
@@ -471,7 +479,7 @@ class Akatsuki(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    @commands.check(utils.akatsuki_only)
+    @commands.check(akatsuki_only)
     async def linkosu(self, ctx: ContextWrap) -> None:
         if not (user := await self.get_osu(ctx.author.id)):
             try: # Send PM first, since if we fail we need to warn user.
@@ -500,7 +508,7 @@ class Akatsuki(commands.Cog):
 
     @commands.command(hidden = True)
     @commands.guild_only()
-    @commands.check(utils.akatsuki_only)
+    @commands.check(akatsuki_only)
     async def next_roleupdate(self, ctx: ContextWrap) -> None:
         if not (next_iteration := self.manage_roles.next_iteration):
             return await ctx.send('Role updates are currently disabled.')
@@ -556,7 +564,7 @@ class Akatsuki(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    @commands.check(utils.akatsuki_only)
+    @commands.check(akatsuki_only)
     @commands.has_permissions(manage_messages = True)
     async def reporting_embed(self, ctx: ContextWrap) -> None:
         e = discord.Embed(

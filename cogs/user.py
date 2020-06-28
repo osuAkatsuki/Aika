@@ -7,7 +7,7 @@ from math import sqrt
 from time import time
 from random import randrange
 
-import utils
+from utils import try_parse_float
 from Aika import Leaderboard, ContextWrap
 
 class User(commands.Cog):
@@ -198,7 +198,7 @@ class User(commands.Cog):
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
     async def levelreq(self, ctx: ContextWrap, *, _lv) -> None:
-        if not (level := utils.try_parse_float(_lv)):
+        if not (level := try_parse_float(_lv)):
             return await ctx.send('\n'.join([
                 'Invalid syntax.',
                 '> Correct syntax: `!lvreq <level>`.'

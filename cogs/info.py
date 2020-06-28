@@ -5,6 +5,7 @@ import discord
 from discord.ext import commands
 
 from Aika import Ansi, Leaderboard, ContextWrap
+from utils import akatsuki_only
 
 class Info(commands.Cog):
     def __init__(self, bot):
@@ -26,9 +27,10 @@ class Info(commands.Cog):
     # TODO: _rm_faq(), although this will be a bit weird with id & topic valid..
 
     @commands.command(aliases = ['info', 'answer'])
+    @commands.guild_only()
+    @commands.check(akatsuki_only)
     @commands.cooldown(1, 3, commands.BucketType.default) # 3s cooldown global
     @commands.cooldown(1, 6, commands.BucketType.user)    # 6s cooldown for users
-    @commands.guild_only()
     async def faq(self, ctx: ContextWrap) -> None:
         # TODO fix: you can do something like !faq cert 2 (if id for cert was 2) to print a callback twice.
         if len(split := list(dict.fromkeys(ctx.message.content.split(' ')))) not in range(2, 5):
@@ -78,6 +80,7 @@ class Info(commands.Cog):
 
     @commands.command(aliases = ['newfaq'], hidden = True)
     @commands.guild_only()
+    @commands.check(akatsuki_only)
     @commands.has_guild_permissions(ban_members = True) # somewhat arbitrary..
     async def addfaq(self, ctx: ContextWrap, *, new_faq) -> None:
         # format: topic|title|content
