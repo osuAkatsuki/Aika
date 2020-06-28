@@ -211,8 +211,6 @@ class Akatsuki(commands.Cog):
             # We'll eventually join them all by newlines into the
             scores = []
             for idx, row in enumerate(res):
-                if not row['hit_length']:
-                    row['hit_length'] = 0
 
                 # Iterate through scores, adding them to `scores`.
                 if row['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
@@ -398,9 +396,6 @@ class Akatsuki(commands.Cog):
                         res['n300'], res['n100'], res['n50'],
                         res['nmiss']) if res['completed'] != 0 else 'F'
                 ])
-
-            if not res['hit_length']:
-                res['hit_length'] = 0
 
             if res['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
                 res['hit_length'] = int(res['hit_length'] / 1.5)

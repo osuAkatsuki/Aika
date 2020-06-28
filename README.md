@@ -30,9 +30,9 @@ no parameters will simply retrieve your own.
 # Akatsuki commands
 !<top> (-rx) (-gm 0/1) (@mention/akatsuki username) # shows your (or target's) best 3 plays on akatsuki
 !<rc/recent> (@mention/akatsuki username) # shows your (or target's) most recent score on akatsuki
+!<link/linkosu> # allows you to link your akatsuki account to discord
 
 # Akatsuki-only commands (only available in akatsuki's discord)
-!<link/linkosu> # allows you to link your akatsuki account to discord
 !<faq> (name/id) # get FAQ topics
 ```
 
