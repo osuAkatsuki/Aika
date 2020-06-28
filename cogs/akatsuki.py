@@ -5,7 +5,7 @@
 # to use it, butplease don't expect support or really any use out of this code;
 # i'm witing it for my own use case.
 
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Tuple
 import discord
 from discord.ext import commands, tasks
 
@@ -26,6 +26,7 @@ from utils import (
     seconds_readable_full, printc
 )
 
+FAQ = Dict[str, Union[int, str]]
 
 class Akatsuki(commands.Cog):
     def __init__(self, bot):
