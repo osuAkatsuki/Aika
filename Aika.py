@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Union, Final, List, Dict, Optional
+from typing import Union, List, Dict, Optional
 import discord, asyncio, aiohttp
 from discord.ext import commands, tasks
 from os import chdir, path
@@ -11,11 +11,10 @@ from shutil import copyfile
 from requests import get
 from json import loads
 
-from enum import IntEnum
-
+from constants import Ansi
 from db import dbConnector
 from mysql.connector import errorcode, Error as SQLError
-from utils import asciify, truncate
+from utils import asciify, truncate, printc
 
 Listing = Dict[str, Union[int, float, str]]
 
@@ -37,32 +36,6 @@ class Leaderboard:
                     **i # <-- the real params
                 ) for idx, i in enumerate(self.listings))
         )
-
-class Ansi(IntEnum):
-    # Default colours
-    BLACK: Final[int] = 30
-    RED: Final[int] = 31
-    GREEN: Final[int] = 32
-    YELLOW: Final[int] = 33
-    BLUE: Final[int] = 34
-    MAGENTA: Final[int] = 35
-    CYAN: Final[int] = 36
-    WHITE: Final[int] = 37
-
-    # Light colours
-    GRAY: Final[int] = 90
-    LIGHT_RED: Final[int] = 91
-    LIGHT_GREEN: Final[int] = 92
-    LIGHT_YELLOW: Final[int] = 93
-    LIGHT_BLUE: Final[int] = 94
-    LIGHT_MAGENTA: Final[int] = 95
-    LIGHT_CYAN: Final[int] = 96
-    LIGHT_WHITE: Final[int] = 97
-
-    RESET: Final[int] = 0
-
-    def __repr__(self) -> str:
-        return f'\x1b[{self.value}m'
 
 # Light wrapper around commands.Context to allow for one of Aika's
 # special features: the ability to edit previous messages to edit
@@ -201,7 +174,7 @@ class Aika(commands.Bot):
     async def on_member_ban(
         self, guild: discord.Guild,
         user: Union[discord.Member, discord.User]) -> None:
-        print(f'{Ansi.GREEN!r}{user} was banned from {guild}.{Ansi.RESET!r}')
+        printc(f'{user} was banned from {guild}.', Ansi.GREEN)
 
     async def on_ready(self) -> None:
         # TODO: maybe use datetime module rather than this w/ formatting?
@@ -333,7 +306,7 @@ def ensure_config() -> bool:
 
     if not path.exists('config.sample.py'):
         if not (r := get('http://tiny.cc/l7wzpz')):
-            print(f'{Ansi.LIGHT_RED!r}Failed to fetch default config.{Ansi.RESET!r}')
+            printc('Failed to fetch default config.', Ansi.LIGHT_RED)
             return False
 
         with open('config.sample.py', 'w+') as f:
@@ -341,7 +314,7 @@ def ensure_config() -> bool:
 
     copyfile('config.sample.py', 'config.py')
 
-    print(f'{Ansi.CYAN!r}A default config has been generated.{Ansi.RESET!r}')
+    printc('A default config has been generated.', Ansi.CYAN)
     return False
 
 def main() -> None:

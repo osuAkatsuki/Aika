@@ -15,14 +15,15 @@ from re import match
 
 from collections import defaultdict
 
-from Aika import Ansi, ContextWrap
+from Aika import ContextWrap
 from oppai.owoppai import Owoppai
 
+from constants import Ansi, Mods, regexes
 from utils import (
-    Mods, akatsuki_only, gamemode_readable, seconds_readable,
+    akatsuki_only, gamemode_readable, seconds_readable,
     accuracy_grade, calc_accuracy_std, calc_accuracy_taiko,
-    mods_readable, regexes, truncate, status_readable,
-    seconds_readable_full
+    mods_readable, truncate, status_readable,
+    seconds_readable_full, printc
 )
 
 
@@ -80,7 +81,7 @@ class Akatsuki(commands.Cog):
                         f'```\n{msg.clean_content}```'
                     ]))
                 except discord.Forbidden:
-                    print(f'{Ansi.LIGHT_RED!r}Failed to DM {msg.author}.{Ansi.RESET!r}')
+                    printc(f'Failed to DM {msg.author}.', Ansi.LIGHT_RED)
                 return await msg.delete()
 
             admin_reports = msg.guild.get_channel(

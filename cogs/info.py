@@ -4,21 +4,24 @@ from typing import Tuple, Dict, Union
 import discord
 from discord.ext import commands
 
-from Aika import Ansi, Leaderboard, ContextWrap
-from utils import akatsuki_only
+from Aika import Leaderboard, ContextWrap
+from constants import Ansi
+from utils import akatsuki_only, printc
+
+FAQ = Dict[str, Union[int, str]]
 
 class Info(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.faq: Tuple[Dict[str, Union[int, str]]] = self.load_faq()
+        self.faq: Tuple[FAQ] = self.load_faq()
 
-    def load_faq(self) -> Tuple[Dict[str, Union[int, str]]]:
+    def load_faq(self) -> Tuple[FAQ]:
         if not (res := self.bot.db.fetchall('SELECT * FROM aika_faq ORDER BY id ASC')):
             raise Exception('FAQ cog enabled, but FAQ empty in database!')
         return tuple(res)
 
     def add_faq(self, topic: str, title: str, content: str) -> None:
-        print(f'{Ansi.GREEN!r}Adding new FAQ topic - {topic}{Ansi.RESET!r}')
+        printc(f'Adding new FAQ topic - {topic}.', Ansi.GREEN)
         self.bot.db.execute(
             'INSERT INTO aika_faq (id, topic, title, content) '
             'VALUES (NULL, %s, %s, %s)', [topic, title, content])
@@ -52,7 +55,7 @@ class Info(commands.Cog):
             e.set_footer(text = f'Aika v{self.bot.config.version}')
             return await ctx.send(embed = e)
 
-        invalid: List[Dict[str, Union[int, str]]] = []
+        invalid: List[FAQ] = []
         types: List[str] = []
 
         # TODO: man this is so damn ugly
