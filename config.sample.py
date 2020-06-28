@@ -2,7 +2,7 @@
 
 # extensions to be used on boot
 initial_extensions = [
-    'user', 'utility', 'info'
+    'user', 'utility'
 ]
 
 # command prefix for all commands.
@@ -22,10 +22,10 @@ substring_filters = {'sub w-', 'ord', 'matc', 'hes'}
 
 # mysql database information
 mysql = {
-    'database': '',
-    'host': '',
-    'password': '',
-    'user': ''
+    'database': 'the_data_dungeon',
+    'host': 'localhost',
+    'password': 'drowssap',
+    'user': 'root'
 }
 
 # Aika's version #
@@ -39,10 +39,7 @@ thumbnails = {
 # some controls over experience gain for users.
 xp = {
     'ratelimit': 60, # how often a user can gain xp
-    'range': {
-        'start': 2, # min they can gain at random
-        'stop':  7  # max they can gain at random
-    }
+    'range': (2, 7)
 }
 
 # replace keys .format() style with values in FAQ output.
@@ -52,4 +49,4 @@ faq_replacements = {
 }
 
 embed_colour = 0xAC88D8 # colour for embeds
-server_build = False
+server_build = False # whether the server is running live
