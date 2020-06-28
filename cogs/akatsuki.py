@@ -142,7 +142,7 @@ class Akatsuki(commands.Cog):
         if not msg: # Nothing specified, check for account link
             if not all(users := [await self.get_osu(ctx.author.id)]):
                 return await ctx.send(
-                    'You must first link your Akatsuki account with **!linkosu**!')
+                    'You must first link your Akatsuki account with **!link**!')
         else: # They sent the user, either by mention or akatsuki username.
             if ctx.message.mentions:
                 if not all(users := [await self.get_osu(i.id) for i in ctx.message.mentions]):
@@ -211,6 +211,9 @@ class Akatsuki(commands.Cog):
             # We'll eventually join them all by newlines into the
             scores = []
             for idx, row in enumerate(res):
+                if not row['hit_length']:
+                    row['hit_length'] = 0
+
                 # Iterate through scores, adding them to `scores`.
                 if row['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
                     row['hit_length'] = int(row['hit_length'] / 1.5)
@@ -319,7 +322,7 @@ class Akatsuki(commands.Cog):
         if not msg: # Nothing specified, check for account link
             if not all(users := [await self.get_osu(ctx.author.id)]):
                 return await ctx.send(
-                    'You must first link your Akatsuki account with **!linkosu**!')
+                    'You must first link your Akatsuki account with **!link**!')
         else: # They sent the user, either by mention or akatsuki username.
             if ctx.message.mentions:
                 if not all(users := [await self.get_osu(i.id) for i in ctx.message.mentions]):
@@ -395,6 +398,9 @@ class Akatsuki(commands.Cog):
                         res['n300'], res['n100'], res['n50'],
                         res['nmiss']) if res['completed'] != 0 else 'F'
                 ])
+
+            if not res['hit_length']:
+                res['hit_length'] = 0
 
             if res['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
                 res['hit_length'] = int(res['hit_length'] / 1.5)
@@ -480,10 +486,9 @@ class Akatsuki(commands.Cog):
             e.set_image(url = f"https://assets.ppy.sh/beatmaps/{res['bsid']}/covers/cover.jpg")
             await ctx.send(embed = e)
 
-    @commands.command()
+    @commands.command(aliases = ['linkosu'])
     @commands.guild_only()
-    @commands.check(akatsuki_only)
-    async def linkosu(self, ctx: ContextWrap) -> None:
+    async def link(self, ctx: ContextWrap) -> None:
         if not (user := await self.get_osu(ctx.author.id)):
             try: # Send PM first, since if we fail we need to warn user.
                 await ctx.author.send('\n'.join([
@@ -542,22 +547,22 @@ class Akatsuki(commands.Cog):
         # Remove roles
         for u in filter(lambda u: premium in u.roles, akatsuki.members):
             if not res[u.id] & (1 << 23):
-                print(f"{col!r}Removing {u}'s premium.{Ansi.RESET!r}")
+                printc(f"Removing {u}'s premium.", col)
                 await u.remove_roles(premium)
 
         for u in filter(lambda u: supporter in u.roles, akatsuki.members):
             if not res[u.id] & (1 << 2):
-                print(f"{col!r}Removing {u}'s supporter.{Ansi.RESET!r}")
+                printc(f"Removing {u}'s supporter.", col)
                 await u.remove_roles(supporter)
 
         # Add roles
         no_role = lambda u: not any(r in u.roles for r in {supporter, premium})
         for u in filter(lambda u: u.id in res and no_role(u), akatsuki.members):
             if res[u.id] & (1 << 23):
-                print(f"{col!r}Adding {u}'s premium.{Ansi.RESET!r}")
+                printc(f"Adding {u}'s premium.", col)
                 await u.add_roles(premium)
             elif res[u.id] & (1 << 2):
-                print(f"{col!r}Adding {u}'s supporter.{Ansi.RESET!r}")
+                printc(f"Adding {u}'s supporter.", col)
                 await u.add_roles(supporter)
 
 

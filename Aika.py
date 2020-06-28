@@ -81,7 +81,7 @@ class Aika(commands.Bot):
             command_prefix = commands.when_mentioned_or(
                              self.config.command_prefix),
             owner_id = self.config.discord_owner,
-            help_command = None) # Disabled until I write my own
+            help_command = None)
 
         self.connect_db()
 

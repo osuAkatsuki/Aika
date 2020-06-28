@@ -239,7 +239,7 @@ class User(commands.Cog):
 
     # TODO: re-create global leaderboard for all servers
 
-    @commands.command(aliases = ['aika'])
+    @commands.command(aliases = ['aika', 'help'])
     async def botinfo(self, ctx: ContextWrap) -> None:
         e = discord.Embed(
             colour = self.bot.config.embed_colour,
@@ -248,7 +248,7 @@ class User(commands.Cog):
         e.set_author(
             name = f'Aika (Aika#7862)',
             url = 'https://github.com/cmyui/Aika',
-            icon_url = 'https://duyt4h9nfnj50.cloudfront.net/resized/b0b1fbd09b9c0472cb5c8b977e34ab6f-w550-b4.jpg')
+            icon_url = 'https://a.akatsuki.pw/u/999')
 
         e.add_field(
             name = 'Introduction',

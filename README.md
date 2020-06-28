@@ -32,7 +32,7 @@ no parameters will simply retrieve your own.
 !<rc/recent> (@mention/akatsuki username) # shows your (or target's) most recent score on akatsuki
 
 # Akatsuki-only commands (only available in akatsuki's discord)
-!<linkosu> # allows you to link your akatsuki account to Discord
+!<link/linkosu> # allows you to link your akatsuki account to discord
 !<faq> (name/id) # get FAQ topics
 ```
 
