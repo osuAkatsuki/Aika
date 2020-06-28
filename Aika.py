@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 
 from typing import Union, Final, List, Dict, Optional
-import discord, asyncio
+import discord, asyncio, aiohttp
 from discord.ext import commands, tasks
 from os import chdir, path
 from time import time
-from datetime import datetime
+from datetime import datetime as dt, timezone as tz
 import traceback
 from shutil import copyfile
 from requests import get
-import aiohttp
 from json import loads
 
 from enum import IntEnum
@@ -284,9 +283,8 @@ class Aika(commands.Bot):
             or any(s in self.config.filters for s in msg.split())
 
     async def print_console(self, msg: discord.Message, col: Ansi) -> None:
-        msg_clean = msg.clean_content.replace('\u001b', '')
         print('{c!r}[{time:%H:%M:%S} {guild} #{chan}]{gray!r} {author}{reset!r}: {msg}'.format(
-            c = col, time = datetime.now(), guild = msg.channel.guild,
+            c = col, time = dt.now(tz = tz.utc), guild = msg.channel.guild,
             chan = msg.channel, gray = Ansi.GRAY, author = msg.author,
             reset = Ansi.RESET, msg = msg.clean_content.replace('\u001b', '')
         ))
@@ -295,7 +293,7 @@ class Aika(commands.Bot):
     async def bg_loop(self) -> None:
         await self.wait_until_ready()
 
-        now = datetime.now()
+        now = dt.now(tz = tz.utc)
         is_420 = any((now.hour in {4, 16} and now.minute == 20,
                       now.month == 4 and now.day == 20))
 
