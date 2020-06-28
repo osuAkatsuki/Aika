@@ -4,6 +4,8 @@
 # end up dragging around with me.. and some even more wild ones
 from typing import List, Optional
 from enum import IntEnum
+from discord.ext import commands
+from config import akatsuki
 
 from re import compile as re_compile
 regexes = {
@@ -209,3 +211,8 @@ def asciify(s: str) -> str:
 
 def truncate(s: str, max_len: int) -> str:
     return f'{s[:max_len - 2]}..' if len(s) > max_len else s
+
+def akatsuki_only(self, ctx) -> bool:
+    def predicate(self, ctx) -> bool:
+        return ctx.guild.id == akatsuki['id']
+    return commands.check(predicate)

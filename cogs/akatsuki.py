@@ -46,7 +46,6 @@ class Akatsuki(commands.Cog):
             return
 
         if msg.channel.id == self.bot.config.akatsuki['channels']['verify']:
-
             role = msg.guild.get_role(self.bot.config.akatsuki['roles']['member'])
 
             if role not in msg.author.roles and msg.content == '!verify':
@@ -472,6 +471,7 @@ class Akatsuki(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
+    @commands.check(utils.akatsuki_only)
     async def linkosu(self, ctx: ContextWrap) -> None:
         if not (user := await self.get_osu(ctx.author.id)):
             try: # Send PM first, since if we fail we need to warn user.
@@ -500,6 +500,7 @@ class Akatsuki(commands.Cog):
 
     @commands.command(hidden = True)
     @commands.guild_only()
+    @commands.check(utils.akatsuki_only)
     async def next_roleupdate(self, ctx: ContextWrap) -> None:
         if not (next_iteration := self.manage_roles.next_iteration):
             return await ctx.send('Role updates are currently disabled.')
@@ -555,6 +556,7 @@ class Akatsuki(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
+    @commands.check(utils.akatsuki_only)
     @commands.has_permissions(manage_messages = True)
     async def reporting_embed(self, ctx: ContextWrap) -> None:
         e = discord.Embed(
