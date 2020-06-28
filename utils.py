@@ -212,7 +212,5 @@ def asciify(s: str) -> str:
 def truncate(s: str, max_len: int) -> str:
     return f'{s[:max_len - 2]}..' if len(s) > max_len else s
 
-def akatsuki_only(self, ctx) -> bool:
-    def predicate(self, ctx) -> bool:
-        return ctx.guild.id == akatsuki['id']
-    return commands.check(predicate)
+def akatsuki_only(ctx) -> bool:
+    return ctx.guild.id == akatsuki['id']

@@ -256,6 +256,9 @@ class Aika(commands.Bot):
             return await ctx.send(
                 'You have insufficient guild permissions to perform that command.')
 
+        elif isinstance(error, commands.CheckFailure):
+            return # Someone tried using an akatsuki-limited command outside.
+
         print(f'Ignoring exception in command {ctx.command}')
         traceback.print_exception(type(error), error, error.__traceback__)
 
