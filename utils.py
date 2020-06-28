@@ -12,18 +12,18 @@ def mods_readable(m: int) -> str:
     if not m: return ''
 
     r: List[str] = []
-    if m & Mods.NOFAIL:      r.append('NF')
-    if m & Mods.EASY:        r.append('EZ')
-    if m & Mods.TOUCHSCREEN: r.append('TD')
-    if m & Mods.HIDDEN:      r.append('HD')
-    if m & Mods.HARDROCK:    r.append('HR')
-    if m & Mods.DOUBLETIME:  r.append('DT')
-    if m & Mods.RELAX:       r.append('RX')
-    if m & Mods.HALFTIME:    r.append('HT')
-    if m & Mods.NIGHTCORE:   r.append('NC')
-    if m & Mods.FLASHLIGHT:  r.append('FL')
-    if m & Mods.SPUNOUT:     r.append('SO')
-    if m & Mods.SCOREV2:     r.append('V2')
+    if m & Mods.NOFAIL:       r.append('NF')
+    if m & Mods.EASY:         r.append('EZ')
+    if m & Mods.TOUCHSCREEN:  r.append('TD')
+    if m & Mods.HIDDEN:       r.append('HD')
+    if m & Mods.HARDROCK:     r.append('HR')
+    if m & Mods.NIGHTCORE:    r.append('NC')
+    elif m & Mods.DOUBLETIME: r.append('DT')
+    if m & Mods.RELAX:        r.append('RX')
+    if m & Mods.HALFTIME:     r.append('HT')
+    if m & Mods.FLASHLIGHT:   r.append('FL')
+    if m & Mods.SPUNOUT:      r.append('SO')
+    if m & Mods.SCOREV2:      r.append('V2')
     return ''.join(r)
 
 def seconds_readable(seconds: int) -> str:
