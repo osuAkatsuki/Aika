@@ -485,29 +485,32 @@ class Akatsuki(commands.Cog):
     @commands.guild_only()
     async def link(self, ctx: ContextWrap) -> None:
         if not (user := await self.get_osu(ctx.author.id)):
-            try: # Send PM first, since if we fail we need to warn user.
-                await ctx.author.send('\n'.join([
-                    'Please paste the following command into #osu (or dm with Aika) ingame.',
-                    f'> `!vdiscord {((ctx.author.id << 0o14) | 0x993) >> 1}`'
-                ]))
-            except discord.Forbidden:
-                return await ctx.send('\n'.join([
-                    'I was unable to DM you your code!',
-                    'You probably have DMs from non-friends disabled on Discord..'
-                ]))
-
-            # "Unlock" the account by setting the ID to 0 instead of null
-            self.bot.db.execute(
-                'UPDATE aika_users SET osu_id = 0 WHERE id = %s',
-                [ctx.author.id])
-
-            await ctx.message.delete()
-        else:
-            await ctx.send('\n'.join([
+            return await ctx.send('\n'.join([
                 'Your Discord has already been linked to an osu!Akatsuki account!',
                 'If you would like to remove this, please contact cmyui#0425 directly.',
                 f'> **https://akatsuki.pw/u/{user["id"]}**'
             ]))
+
+        try: # Send PM first, since if we fail we need to warn user.
+            await ctx.author.send('\n'.join([
+                'Please paste the following command into #osu (or dm with Aika) ingame.',
+                f'> `!vdiscord {((ctx.author.id << 0o14) | 0x993) >> 1}`'
+            ]))
+        except discord.Forbidden:
+            return await ctx.send('\n'.join([
+                'I was unable to DM you your code!',
+                'You probably have DMs from non-friends disabled on Discord..'
+            ]))
+
+        # "Unlock" the account by setting the ID to 0 instead of null
+        self.bot.db.execute(
+            'UPDATE aika_users SET osu_id = 0 WHERE id = %s',
+            [ctx.author.id])
+
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            pass # No perms :/
 
     @commands.command(hidden = True)
     @commands.guild_only()
