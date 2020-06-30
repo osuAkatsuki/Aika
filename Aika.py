@@ -169,7 +169,7 @@ class Aika(commands.Bot):
         if (hit := discord.utils.find(is_cached, self.resp_cache)):
             try:
                 await hit['resp'].delete()
-            except discord.NotFound:
+            except discord.NotFound: # No 403 - it's 100% our own message
                 pass # response has already been deleted
             self.resp_cache.remove(hit)
 

@@ -36,7 +36,11 @@ class Utility(commands.Cog):
                 '**Correct syntax**: `!prune <count (max 1000)>`.'
             ]))
 
-        await ctx.message.delete()
+        try: # TODO safely (i.e. not trycatch)
+            await ctx.message.delete()
+        except discord.Forbidden:
+            pass
+
         await ctx.channel.purge(limit = count)
 
 def setup(bot: commands.Bot):

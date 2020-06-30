@@ -507,10 +507,10 @@ class Akatsuki(commands.Cog):
             'UPDATE aika_users SET osu_id = 0 WHERE id = %s',
             [ctx.author.id])
 
-        try:
+        try: # TODO safely (i.e. not trycatch)
             await ctx.message.delete()
         except discord.Forbidden:
-            pass # No perms :/
+            pass
 
     @commands.command(hidden = True)
     @commands.guild_only()
