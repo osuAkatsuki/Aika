@@ -11,29 +11,11 @@ class Utility(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @staticmethod
-    async def format_period(seconds: int) -> str:
-        r: List[str] = []
-
-        if (days := int(seconds / 60 / 60 / 24)):
-            r.append(f'{days}d')
-        seconds %= (60 * 60 * 24)
-
-        if (hours := int(seconds / 60 / 60)):
-            r.append(f'{hours}h')
-        seconds %= (60 * 60)
-
-        if (minutes := int(seconds / 60)):
-            r.append(f'{minutes}m')
-        seconds %= 60
-
-        r.append(f'{seconds:.2f}s')
-        return ' '.join(r)
-
+    from utils import seconds_readable()
     @commands.command()
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def uptime(self, ctx: ContextWrap) -> None:
-        uptime = await self.format_period(time() - self.bot.uptime)
+        uptime = seconds_readable(time() - self.bot.uptime)
         await ctx.send(f"I've been running for **{uptime}**.")
 
     @commands.command(hidden = True)
