@@ -125,7 +125,8 @@ class Aika(commands.Bot):
         if not msg.content or msg.author.bot:
             return
 
-        filtered = await self.filter_content(msg.content.lower())
+        filtered = await msg.guild.id == self.config.akatsuki['id'] \
+               and self.filter_content(msg.content.lower())
 
         colour = Ansi.LIGHT_MAGENTA if msg.author.bot \
             else Ansi.LIGHT_RED if filtered \
@@ -148,7 +149,8 @@ class Aika(commands.Bot):
         or before.content == after.content:
             return
 
-        filtered = await self.filter_content(after.content.lower())
+        filtered = await after.guild.id == self.config.akatsuki['id'] \
+               and self.filter_content(after.content.lower())
 
         colour = Ansi.LIGHT_RED if filtered else Ansi.LIGHT_YELLOW
         await self.print_console(after, colour)
