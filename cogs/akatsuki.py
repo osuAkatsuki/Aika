@@ -484,7 +484,7 @@ class Akatsuki(commands.Cog):
     @commands.command(aliases = ['linkosu'])
     @commands.guild_only()
     async def link(self, ctx: ContextWrap) -> None:
-        if not (user := await self.get_osu(ctx.author.id)):
+        if user := await self.get_osu(ctx.author.id):
             return await ctx.send('\n'.join([
                 'Your Discord has already been linked to an osu!Akatsuki account!',
                 'If you would like to remove this, please contact cmyui#0425 directly.',
