@@ -29,37 +29,30 @@ def mods_readable(m: int) -> str:
 def seconds_readable(seconds: int) -> str:
     r: List[str] = []
 
-    days = seconds // 60 // 60 // 24
+    days, seconds = divmod(seconds, 60 * 60 * 24)
     if days: r.append(f'{days:02d}')
-    seconds %= 60 * 60 * 24
 
-    hours = seconds // 60 // 60
+    hours, seconds = divmod(seconds, 60 * 60)
     if hours: r.append(f'{hours:02d}')
-    seconds %= 60 * 60
 
-    minutes = seconds // 60
+    minutes, seconds = divmod(seconds, 60)
     r.append(f'{minutes:02d}')
-    seconds %= 60
 
-    r.append(f'{seconds % 60:02d}')
-    return ':'.join(r)
+    return ':'.join(r + [f'{seconds % 60:02d}'])
 
 def seconds_readable_full(seconds: int) -> str:
     r: List[str] = []
-    days = seconds // 60 // 60 // 24
-    seconds %= 60 * 60 * 24
+
+    days, seconds = divmod(seconds, 60 * 60 * 24)
     if days: r.append(f'{days} days')
 
-    hours = seconds // 60 // 60
-    seconds %= 60 * 60
+    hours, seconds = divmod(seconds, 60 * 60)
     if hours: r.append(f'{hours} hours')
 
-    minutes = seconds // 60
-    seconds %= 60
+    minutes, seconds = divmod(seconds, 60)
     if minutes: r.append(f'{minutes} minutes')
 
-    r.append(f'{seconds} seconds')
-    return ', '.join(r)
+    return ', '.join(r + [f'{seconds} seconds'])
 
 def gamemode_db(m: int) -> str:
     return [

@@ -118,7 +118,7 @@ class Akatsuki(commands.Cog):
             [username]
         )) and res['id'] else None
 
-    @commands.command()
+    @commands.command(aliases = ['t'])
     @commands.guild_only()
     async def top(self, ctx: ContextWrap) -> None:
         msg = ctx.message.content.split(' ')[1:] # Remove command from content
@@ -310,7 +310,7 @@ class Akatsuki(commands.Cog):
             e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
             await ctx.send(embed = e)
 
-    @commands.command(aliases = ['rc'])
+    @commands.command(aliases = ['rc', 'rs', 'r'])
     @commands.guild_only()
     async def recent(self, ctx: ContextWrap) -> None:
         msg = ctx.message.content.split(' ')[1:] # Remove command from content
@@ -511,6 +511,8 @@ class Akatsuki(commands.Cog):
             await ctx.message.delete()
         except discord.Forbidden:
             pass
+
+        # Other bit of the process is done on osu! by the user.
 
     @commands.command(hidden = True)
     @commands.guild_only()
