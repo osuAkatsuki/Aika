@@ -5,6 +5,10 @@
 from typing import List, Optional
 from enum import IntEnum
 from discord.ext import commands
+from shutil import copyfile
+from requests import get as req_get
+from os import path
+
 from config import akatsuki
 from constants import Ansi, Mods
 
@@ -172,3 +176,20 @@ def akatsuki_only(ctx) -> bool:
 
 def printc(s: str, c: Ansi) -> None:
     print(f'{c!r}{s}{Ansi.RESET!r}')
+
+def ensure_config() -> bool:
+    if path.exists('config.py'):
+        return True
+
+    if not path.exists('config.sample.py'):
+        if not (r := req_get('http://tiny.cc/l7wzpz')):
+            printc('Failed to fetch default config.', Ansi.LIGHT_RED)
+            return False
+
+        with open('config.sample.py', 'w+') as f:
+            f.write(r.text)
+
+    copyfile('config.sample.py', 'config.py')
+
+    printc('A default config has been generated.', Ansi.CYAN)
+    return False

@@ -6,7 +6,7 @@ initial_extensions = [
 ]
 
 # command prefix for all commands.
-command_prefix = '!'
+prefix = '!'
 
 # bot owner's discord ID.
 discord_owner = 123456789012345678

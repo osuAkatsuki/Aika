@@ -15,7 +15,7 @@ from re import match
 
 from collections import defaultdict
 
-from Aika import ContextWrap, Leaderboard
+from objects.aika import ContextWrap, Leaderboard, Aika
 from oppai.owoppai import Owoppai
 
 from constants import Ansi, Mods, regexes
@@ -29,7 +29,7 @@ from utils import (
 FAQ = Dict[str, Union[int, str]]
 
 class Akatsuki(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: Aika):
         self.bot = bot
         self.faq: Tuple[FAQ] = self.load_faq()
 

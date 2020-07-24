@@ -5,11 +5,11 @@ import discord
 from discord.ext import commands
 from time import time
 
-from Aika import ContextWrap
+from objects.aika import ContextWrap, Aika
 from utils import seconds_readable
 
 class Utility(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: Aika):
         self.bot = bot
 
     @commands.command()

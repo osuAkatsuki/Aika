@@ -8,10 +8,10 @@ from time import time
 from random import randrange
 
 from utils import try_parse_float
-from Aika import Leaderboard, ContextWrap
+from objects.aika import Leaderboard, ContextWrap, Aika
 
 class User(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: Aika):
         self.bot = bot
         self.chatxp_cache = {}
         self.voice_xp.start()
@@ -73,10 +73,8 @@ class User(commands.Cog):
             'UPDATE aika_users SET deleted_messages = deleted_messages + %s '
             'WHERE id = %s', [count, discordID])
 
-    async def increment_xp(
-        self, discordID: int, guildID: int,
-        multiplier: float = 1.0, override: bool = False
-    ) -> None:
+    async def increment_xp(self, discordID: int, guildID: int,
+                           multiplier: float = 1.0, override: bool = False) -> None:
         if not await self.user_exists(discordID):
             await self.create_user(discordID)
 
@@ -124,7 +122,8 @@ class User(commands.Cog):
         await self.increment_xp(message.author.id, message.guild.id)
 
     @commands.Cog.listener()
-    async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
+    async def on_message_edit(self, before: discord.Message,
+                              after: discord.Message) -> None:
         await self.bot.wait_until_ready()
 
         if not after.content or after.author.bot:
@@ -174,6 +173,7 @@ class User(commands.Cog):
 
         ordinal = lambda n: f'{n}{"tsnrhtdd"[(n//10%10!=1)*(n%10<4)*n%10::4]}'
         format_date = lambda d: f'{d:%A, %B {ordinal(d.day)} %Y @ %I:%M:%S %p}'
+
         e.add_field(
             name = 'Account creation',
             value = format_date(target.created_at),
@@ -241,9 +241,7 @@ class User(commands.Cog):
 
     @commands.command(aliases = ['aika', 'help'])
     async def botinfo(self, ctx: ContextWrap) -> None:
-        e = discord.Embed(
-            colour = self.bot.config.embed_colour,
-        )
+        e = discord.Embed(colour = self.bot.config.embed_colour)
 
         e.set_author(
             name = f'Aika (Aika#7862)',

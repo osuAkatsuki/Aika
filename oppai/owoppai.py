@@ -8,8 +8,12 @@ from requests import get
 
 import utils
 
+__all__ = ('Owoppai',)
+
 # TODO: async
 class Owoppai:
+    __slots__ = ('filename', 'accuracy', 'mods', 'combo', 'misses', 'gamemode')
+
     def __init__(self) -> None:
         self.filename = ''
         self.accuracy = -1.0
