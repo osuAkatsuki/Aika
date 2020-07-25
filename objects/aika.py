@@ -12,7 +12,7 @@ from time import time
 
 from constants import Ansi
 from mysql.connector import errorcode, Error as SQLError
-from utils import printc, asciify
+from utils import printc, asciify, truncate
 
 __all__ = (
     'Listing',
