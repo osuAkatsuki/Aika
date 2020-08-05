@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
 from typing import Union, List, Dict, Optional
-from cmyui import MySQLPool
+from cmyui import SQLPool
 import discord
 import aiohttp
+from math import sqrt
 from discord.ext import commands, tasks
 from json import loads
 from datetime import datetime as dt, timezone as tz
@@ -109,7 +110,7 @@ class Aika(commands.Bot):
             return
 
         try:
-            self.db = MySQLPool(**self.config.mysql, pool_size = 4)
+            self.db = SQLPool(**self.config.mysql, pool_size = 4)
         except SQLError as err:
             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
                 raise Exception('SQLError: Incorrect username/password.')
@@ -254,9 +255,16 @@ class Aika(commands.Bot):
             or any(s in self.config.filters for s in msg.split())
 
     async def print_console(self, msg: discord.Message, col: Ansi) -> None:
+        if not (res := self.db.fetch(
+            'SELECT xp FROM aika_xp '
+            'WHERE discord_id = %s AND guild_id = %s',
+            [msg.author.id, msg.guild.id]
+        )): res = {'xp': 0} # user's first time talking.
+
+        author_fmt = f"{msg.author} (Lv. {sqrt(res['xp'] / 50):.2f})"
         print('{c!r}[{time:%H:%M:%S} {guild} #{chan}]{gray!r} {author}{reset!r}: {msg}'.format(
             c = col, time = dt.now(tz = tz.utc), guild = msg.channel.guild,
-            chan = msg.channel, gray = Ansi.GRAY, author = msg.author,
+            chan = msg.channel, gray = Ansi.GRAY, author = author_fmt,
             reset = Ansi.RESET, msg = msg.clean_content.replace('\u001b', '')
         ))
 

@@ -2,3 +2,4 @@ discord.py>=1.0.1
 mysqlclient>=1.4.6
 mysql-connector-python>=8.0.19
 requests>=2.23.0
+cmyui>=1.1.5
