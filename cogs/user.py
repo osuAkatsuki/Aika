@@ -222,17 +222,16 @@ class User(commands.Cog):
             'DESC LIMIT 10')
         ): return await ctx.send('Not a single soul has ever told a lie..')
 
-        leaderboard = Leaderboard([{
-            'title': user.name if (
-                user := self.bot.get_user(row['id'])
-                ) else '<left guild>',
-            'value': row['deleted_messages']
-        } for row in res])
+        lb = Leaderboard()
+
+        for row in res:
+            name = u.name if (u := self.bot.get_user(row['id'])) else '<left guild>'
+            lb.update({name: row['deleted_messages']})
 
         e = discord.Embed(
             colour = self.bot.config.embed_colour,
             title = 'Deleted message leaderboards.',
-            description = repr(leaderboard))
+            description = repr(lb))
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e)
@@ -277,17 +276,16 @@ class User(commands.Cog):
             [ctx.guild.id])
         ): return await self.leaderboard(ctx)
 
-        leaderboard = Leaderboard([{
-            'title': user.name if (
-                user := self.bot.get_user(row['id'])
-                ) else '<left guild>',
-            'value': f"Lv. {sqrt(row['xp'] / 50):.2f} ({row['xp']}xp)"
-        } for row in res])
+        lb = Leaderboard()
+
+        for row in res:
+            name = u.name if (u := self.bot.get_user(row['id'])) else '<left guild>'
+            lb.update({name: f"Lv. {sqrt(row['xp'] / 50):.2f} ({row['xp']}xp)"})
 
         e = discord.Embed(
             title = 'XP/Level Leaderboards',
             colour = self.bot.config.embed_colour,
-            description = repr(leaderboard))
+            description = repr(lb))
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e)

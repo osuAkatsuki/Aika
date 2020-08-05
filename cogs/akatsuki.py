@@ -628,13 +628,18 @@ class Akatsuki(commands.Cog):
                 return await ctx.send(
                     'No FAQ callbacks could be fetched from MySQL.')
 
+            lb = Leaderboard()
+
+            for row in res:
+                lb.update({row['title']: row['value']})
+
             e = discord.Embed(
                 colour = self.bot.config.embed_colour,
                 title = 'Availble topics',
                 description = '\n'.join([
                     f"You'll need to provide an id or topic (accepts multiple delimited by space; max 4).",
                     f'**Syntax**: `!{ctx.invoked_with} <id/topic>`',
-                    repr(Leaderboard(res))
+                    repr(lb)
                 ])
             )
 

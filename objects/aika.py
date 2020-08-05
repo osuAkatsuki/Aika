@@ -16,32 +16,35 @@ from mysql.connector import errorcode, Error as SQLError
 from utils import printc, asciify, truncate
 
 __all__ = (
-    'Listing',
     'Leaderboard',
     'ContextWrap',
     'Aika'
 )
 
-Listing = Dict[str, Union[int, float, str]]
 class Leaderboard:
-    __slots__ = ('listings',)
+    """A simple class to create simple readable key: value pair
+    leaderboards which can be pretty-printed for output in Discord.
+    """
+    __slots__ = ('data',)
 
-    def __init__(self, listings: List[Listing]) -> None:
-        self.listings = [{
-            'title': asciify(truncate(i['title'], 12)),
-            'value': i['value']
-        } for i in listings]
+    def __init__(self) -> None:
+        self.data = {}
+
+    def update(self, d) -> None:
+        self.data.update(d)
 
     def __repr__(self) -> str:
-        len_id = len(str(len(self.listings))) + 1
-        len_title = min(14, max(len(i['title']) for i in self.listings))
+        # Maximum lenth of an ID as a string.
+        # Only needs to work for 1-2, so optimized.
+        idx_maxlen = 2 if len(self.data) > 9 else 1
 
-        return '```md\n{lb}```'.format(
-            lb = '\n'.join(
-                '{id:0>{s_id}} {title:^{s_title}} - {value}'.format(
-                    id = f'{idx + 1}.', s_id = len_id, s_title = len_title,
-                    **i # <-- the real params
-                ) for idx, i in enumerate(self.listings))
+        # Maximum length of a key
+        key_maxlen = min(14, max(len(k) for k in self.data.keys()))
+
+        return '```markdown\n{}```'.format(
+            '\n'.join(f'{idx + 1:0>{idx_maxlen}}.  {d[0]:^{key_maxlen}} - {d[1]}'
+                      for idx, d in enumerate(self.data.items())
+            )
         )
 
 # Light wrapper around commands.Context to allow for one of Aika's
