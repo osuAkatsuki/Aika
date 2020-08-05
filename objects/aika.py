@@ -42,9 +42,10 @@ class Leaderboard:
         key_maxlen = min(14, max(len(k) for k in self.data.keys()))
 
         return '```markdown\n{}```'.format(
-            '\n'.join(f'{idx + 1:0>{idx_maxlen}}.  {d[0]:^{key_maxlen}} - {d[1]}'
-                      for idx, d in enumerate(self.data.items())
-            )
+            '\n'.join('{idx:0>{idx_maxlen}}. {key:^{key_maxlen}} - {value}'.format(
+                idx = idx + 1, key = asciify(truncate(d[0], 12)), value = d[1],
+                key_maxlen = key_maxlen, idx_maxlen = idx_maxlen
+            ) for idx, d in enumerate(self.data.items()))
         )
 
 # Light wrapper around commands.Context to allow for one of Aika's
