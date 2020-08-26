@@ -62,7 +62,7 @@ class Owoppai:
         if self.misses:
             args.append(f'{self.misses}m')
         if self.gamemode == 1: # taiko support
-            args.append('-taiko')
+            args.extend(('-taiko', '-m1'))
 
         # Output in json format
         args.append('-ojson')

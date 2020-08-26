@@ -199,7 +199,7 @@ class Akatsuki(commands.Cog):
             else:
                 _name = user['name']
 
-            plural = lambda s: f"{s}'" if s[-1] == 's' else f"{s}'s"
+            plural = lambda s: f"{s}'s" if s[-1] != 's' else f"{s}'"
 
             e.set_author(
                 name = f"{plural(_name)} top 3 {gamemode_readable(gm)} plays.",
@@ -317,6 +317,20 @@ class Akatsuki(commands.Cog):
         if (rx := '-rx' in msg): # Check for and remove -rx from command
             msg.remove('-rx')
 
+        if '-gm' in msg: # -gm <int>
+            if len(msg) < (index := msg.index('-gm')) + 1 \
+            or not msg[index + 1].isdecimal():
+                return await ctx.send('\n'.join([
+                    'Invalid syntax!',
+                    '> Correct syntax: `!top <-rx, -gm 1> <username/@mention>`.'
+                ]))
+
+            msg.remove('-gm')
+            if (gm := int(msg.pop(index))) not in range(2):
+                return await ctx.send('Invalid gamemode (only osu! & osu!taiko supported).')
+        else: # no -gm flag present
+            gm = 0
+
         if not msg: # Nothing specified, check for account link
             if not all(users := [await self.get_osu(ctx.author.id)]):
                 return await ctx.send(
@@ -353,7 +367,6 @@ class Akatsuki(commands.Cog):
                 'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo,',
                 's.mods, s.300_count n300, s.100_count n100,',
                 's.50_count n50, s.misses_count nmiss, s.time, s.completed,',
-                's.play_mode mode,',
 
                 'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, b.bpm,',
                 'b.ar, b.od, b.max_combo as b_combo, b.hit_length, b.ranked',
@@ -361,8 +374,9 @@ class Akatsuki(commands.Cog):
                 f'FROM {table} s',
                 'LEFT JOIN beatmaps b USING(beatmap_md5)',
                 'WHERE b.ranked = 2 AND s.userid = %s',
+                'AND s.play_mode = %s',
                 'ORDER BY s.time DESC LIMIT 1']),
-                [user['id']]
+                [user['id'], gm]
             )): return await ctx.send('The user has no scores!')
 
             e = discord.Embed(
@@ -381,9 +395,11 @@ class Akatsuki(commands.Cog):
             else:
                 _name = user['name']
 
+            plural = lambda s: f"{s}'s" if s[-1] != 's' else f"{s}'"
+
             e.set_author(
-                name = _name,
-                url = f"https://akatsuki.pw/u/{user['id']}?mode={res['mode']}&rx={int(rx)}",
+                name = f"{plural(_name)} most recent {gamemode_readable(gm)} play.",
+                url = f"https://akatsuki.pw/u/{user['id']}?mode={gm}&rx={int(rx)}",
                 icon_url = f"https://a.akatsuki.pw/{user['id']}")
 
             # Letter grade
@@ -392,7 +408,7 @@ class Akatsuki(commands.Cog):
             res['grade'] = self.bot.get_emoji(
                 self.bot.config.akatsuki['grade_emojis'][
                     accuracy_grade(
-                        res['mode'], res['acc'], res['mods'],
+                        gm, res['acc'], res['mods'],
                         res['n300'], res['n100'], res['n50'],
                         res['nmiss']) if res['completed'] != 0 else 'F'
                 ])
@@ -422,7 +438,7 @@ class Akatsuki(commands.Cog):
                     n300 = res['n300'],
                     n100 = res['n100'],
                     n50 = res['n50'],
-                    nmiss = 0) if res['mode'] == 0 \
+                    nmiss = 0) if gm == 0 \
                 else calc_accuracy_taiko(
                     n300 = res['n300'],
                     n150 = res['n100'], # lol
@@ -431,7 +447,7 @@ class Akatsuki(commands.Cog):
             calc.configure(
                 filename = res['bid'],
                 accuracy = fcAcc,
-                mode = res['mode'],
+                mode = gm,
                 mods = res['mods'],
             )
 
