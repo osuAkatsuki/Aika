@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from typing import List, Dict
 import discord
 from discord.ext import commands
 from time import time

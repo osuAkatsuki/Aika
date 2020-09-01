@@ -2,7 +2,6 @@ create table aika_users
 (
   id               bigint primary key not null,
   xp_cooldown      int default 0      not null,
-  deleted_messages int default 0      not null,
   osu_id           bigint             null
 );
 

@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
 
-from typing import Union, List, Dict, Optional
+from typing import Union, Optional
 from cmyui import SQLPool
+from cmyui.mysql import SQLPool
 import discord
 import aiohttp
 from math import sqrt
 from discord.ext import commands, tasks
-from json import loads
-from datetime import datetime as dt, timezone as tz
+from datetime import (datetime as dt,
+                      timezone as tz)
 import traceback
-from time import time
+import time
+import orjson
 
 from constants import Ansi
 from mysql.connector import errorcode, Error as SQLError
@@ -61,7 +63,7 @@ class ContextWrap(commands.Context):
         is_cached = lambda m: m['msg'] == self.message
         hit = discord.utils.find(is_cached, self.bot.resp_cache)
 
-        if hit and (expired := (int(time()) - hit['expire']) > 0):
+        if hit and (expired := (int(time.time()) - hit['expire']) > 0):
             # We have a hit, but it's expired.
             # Remove it from the cache, and use a new msg.
             self.bot.resp_cache.remove(hit)
@@ -82,7 +84,7 @@ class ContextWrap(commands.Context):
             self.bot.resp_cache.append({
                 'msg': self.message, # their msg
                 'resp': m, # our msg
-                'expire': int(time()) + (5 * 60)
+                'expire': int(time.time()) + (5 * 60)
             })
 
         # Return our response message object.
@@ -188,7 +190,7 @@ class Aika(commands.Bot):
     async def on_ready(self) -> None:
         # TODO: maybe use datetime module rather than this w/ formatting?
         if not hasattr(self, 'uptime'):
-            self.uptime = time()
+            self.uptime = time.time()
 
         print('{col}Ready{reset}: {user} ({userid})'.format(
               col = repr(Ansi.GREEN), reset = repr(Ansi.RESET),
@@ -277,7 +279,7 @@ class Aika(commands.Bot):
         await self.wait_until_ready()
 
         async with aiohttp.ClientSession() as s:
-            online = loads(html)['result'] if (
+            online = orjson.loads(html)['result'] if (
                 html := await self.fetch(
                     s, 'http://144.217.254.156:5001/api/v1/onlineUsers')
             ) else 0
@@ -289,7 +291,7 @@ class Aika(commands.Bot):
     def run(self) -> None:
         try:
             self.bg_loop.start()
-            super().run(self.config.discord_token, reconnect=True)
+            super().run(self.config.discord_token)
         finally:
             self.bg_loop.cancel()
 

@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from typing import Optional, Union
+from typing import Union
 import discord
 from discord.ext import commands, tasks
-from math import sqrt
-from time import time
 from random import randrange
+from math import sqrt
+import time
 
 from utils import try_parse_float
 from objects.aika import Leaderboard, ContextWrap, Aika
@@ -56,22 +56,14 @@ class User(commands.Cog):
         return ret
 
     async def can_collect_xp(self, discordID: int) -> bool:
-        return (await self.blocked_until(discordID) - time()) <= 0
+        return (await self.blocked_until(discordID) - time.time()) <= 0
 
     async def update_cooldown(self, discordID: int, seconds: int = 60) -> None:
-        t = int(time() + seconds)
+        t = int(time.time() + seconds)
         self.chatxp_cache[discordID] = t
         self.bot.db.execute(
             'UPDATE aika_users SET xp_cooldown = %s '
             'WHERE id = %s', [t, discordID])
-
-    async def log_deleted_message(self, discordID: int, count: int = 1) -> None:
-        if not await self.user_exists(discordID):
-            await self.create_user(discordID)
-
-        self.bot.db.execute(
-            'UPDATE aika_users SET deleted_messages = deleted_messages + %s '
-            'WHERE id = %s', [count, discordID])
 
     async def increment_xp(self, discordID: int, guildID: int,
                            multiplier: float = 1.0, override: bool = False) -> None:
@@ -89,7 +81,7 @@ class User(commands.Cog):
         return int((level ** 2.0) * 50.0)
 
     async def calculate_level(self, xp: int) -> float:
-        return sqrt(xp / 50)
+        return sqrt(xp / 50.0)
 
     async def get_rank(self, guildID: int, xp: int) -> int:
         return res['r'] if (res := self.bot.db.fetch(
@@ -130,13 +122,6 @@ class User(commands.Cog):
             return # Don't track xp for images & bots..
 
         await self.increment_xp(after.author.id, after.guild.id)
-
-    @commands.Cog.listener()
-    async def on_message_delete(self, msg: discord.Message) -> None:
-        if not await self.user_exists(msg.author.id):
-            await self.create_user(msg.author.id)
-
-        await self.log_deleted_message(msg.author.id)
 
     @commands.command(aliases = ['profile', 'u'])
     @commands.cooldown(3, 5, commands.BucketType.user)
@@ -187,7 +172,7 @@ class User(commands.Cog):
         if (roles := [r.mention for r in filter(not_everyone, target.roles)]):
             e.add_field(
                 name = 'Roles',
-                value = ', '.join(reversed(roles)),
+                value = ' | '.join(reversed(roles)),
                 inline = False)
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
@@ -211,30 +196,6 @@ class User(commands.Cog):
             f'**Level progression to {level:.2f}.**',
             f'> `{current_xp:,}/{total_xp:,}xp ({pc:.2f}%)`'
         ]))
-
-    @commands.command(aliases = ['deleterboards', 'dlb'])
-    @commands.guild_only()
-    @commands.cooldown(3, 5, commands.BucketType.user)
-    async def deleterboard(self, ctx: ContextWrap) -> None:
-        if not (res := self.bot.db.fetchall(
-            'SELECT id, deleted_messages FROM aika_users '
-            'WHERE deleted_messages > 0 ORDER BY deleted_messages '
-            'DESC LIMIT 10')
-        ): return await ctx.send('Not a single soul has ever told a lie..')
-
-        lb = Leaderboard()
-
-        for row in res:
-            name = u.name if (u := self.bot.get_user(row['id'])) else '<left guild>'
-            lb.update({name: row['deleted_messages']})
-
-        e = discord.Embed(
-            colour = self.bot.config.embed_colour,
-            title = 'Deleted message leaderboards.',
-            description = repr(lb))
-
-        e.set_footer(text = f'Aika v{self.bot.config.version}')
-        await ctx.send(embed = e)
 
     # TODO: re-create global leaderboard for all servers
 

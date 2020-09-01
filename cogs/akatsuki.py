@@ -9,14 +9,14 @@ from typing import Dict, List, Optional, Union, Tuple
 import discord
 from discord.ext import commands, tasks
 
-from datetime import datetime as dt, timezone as tz
-from time import time
-from re import match
+import time
+from datetime import (datetime as dt,
+                      timezone as tz)
 
 from collections import defaultdict
 
 from objects.aika import ContextWrap, Leaderboard, Aika
-from oppai.owoppai import Owoppai
+from pp.owoppai import Owoppai
 
 from constants import Ansi, Mods, regexes
 from utils import (
@@ -287,7 +287,7 @@ class Akatsuki(commands.Cog):
                 else:
                     row['mods'] = 'NM'
 
-                if (r := match(regexes['song_name'], row['sn'])):
+                if (r := regexes['song_name'].match(row['sn'])):
                     row['sn'] = f"{truncate(r['sn'], 35)} [{truncate(r['diff'], 25)}]"
                 else:
                     return await ctx.send('<@285190493703503872> broke regex')
@@ -487,7 +487,7 @@ class Akatsuki(commands.Cog):
                 )
 
             # format time played for the footer
-            played_at = seconds_readable_full(int(time() - res['time']))
+            played_at = seconds_readable_full(int(time.time() - res['time']))
             e.set_footer(text = ' | '.join([
                 f'Aika v{self.bot.config.version}',
                 f'Score submitted {played_at} ago.'
