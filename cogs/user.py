@@ -286,7 +286,7 @@ class User(commands.Cog):
         await ctx.send(embed = e)
 
     # Voice Chat XP
-    @tasks.loop(minutes = 2.5)
+    @tasks.loop(minutes = 3.5)
     async def voice_xp(self) -> None:
         await self.bot.wait_until_ready()
 
@@ -305,9 +305,9 @@ class User(commands.Cog):
 
                 multiplier = 1.0
                 if state.self_video:
-                    multiplier *= 2
-                if state.self_stream:
                     multiplier *= 1.5
+                if state.self_stream:
+                    multiplier *= 1.25
                 if state.self_mute:
                     multiplier /= 2
 

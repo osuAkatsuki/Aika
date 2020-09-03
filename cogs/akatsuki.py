@@ -60,17 +60,18 @@ class Akatsuki(commands.Cog):
         if msg.guild.id != self.bot.config.akatsuki['id']:
             return
 
-        if msg.channel.id == self.bot.config.akatsuki['channels']['verify']:
+        channels = self.bot.config.akatsuki['channels']
+
+        if msg.channel.id == channels['verify']:
             role = msg.guild.get_role(self.bot.config.akatsuki['roles']['member'])
 
             if role not in msg.author.roles and msg.content == '!verify':
                 await msg.author.add_roles(role)
 
-                general = msg.guild.get_channel(
-                    self.bot.config.akatsuki['channels']['general'])
+                general = msg.guild.get_channel(channels['general'])
 
-                faq_id = self.bot.config.akatsuki['channels']['faq']
-                help_id = self.bot.config.akatsuki['channels']['help']
+                faq_id = channels['faq']
+                help_id = channels['help']
 
                 await general.send('\n'.join([
                     f'Welcome {msg.author.mention} to Akatsuki!',
@@ -78,7 +79,7 @@ class Akatsuki(commands.Cog):
                 ]))
 
             await msg.delete()
-        elif msg.channel.id == self.bot.config.akatsuki['channels']['user_report']:
+        elif msg.channel.id == channels['user_report']:
             if msg.role_mentions:
                 try:
                     await msg.author.send('\n'.join([
@@ -90,8 +91,7 @@ class Akatsuki(commands.Cog):
                     printc(f'Failed to DM {msg.author}.', Ansi.LIGHT_RED)
                 return await msg.delete()
 
-            admin_reports = msg.guild.get_channel(
-                self.bot.config.akatsuki['channels']['admin_report'])
+            admin_reports = msg.guild.get_channel(channels['admin_report'])
 
             e = discord.Embed(
                 colour = self.bot.config.embed_colour,
@@ -627,7 +627,8 @@ class Akatsuki(commands.Cog):
 
     async def load_faq(self) -> None:
         res = await self.bot.db.fetchall(
-            'SELECT * FROM aika_faq ORDER BY id ASC'
+            'SELECT * FROM aika_faq '
+            'ORDER BY id ASC'
         )
 
         if not res:
