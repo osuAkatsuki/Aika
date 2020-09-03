@@ -19,7 +19,8 @@ class User(commands.Cog):
     def cog_unload(self):
         self.voice_xp.cancel()
 
-    async def set_xp(self, discordID: int, guildID: int, xp: int) -> None:
+    async def set_xp(self, discordID: int,
+                     guildID: int, xp: int) -> None:
         await self.bot.db.execute(
             'INSERT INTO aika_users (discordid, guildid, xp) '
             'VALUES (%(discord)s, %(guild)s, %(xp)s) '
@@ -27,7 +28,8 @@ class User(commands.Cog):
             {'discord': discordID, 'guild': guildID, 'xp': xp}
         )
 
-    async def add_xp(self, discordID: int, guildID: int, xp: int) -> None:
+    async def add_xp(self, discordID: int,
+                     guildID: int, xp: int) -> None:
         await self.bot.db.execute(
             'INSERT INTO aika_users (discordid, guildid, xp) '
             'VALUES (%(discord)s, %(guild)s, %(xp)s) '
@@ -35,7 +37,8 @@ class User(commands.Cog):
             {'discord': discordID, 'guild': guildID, 'xp': xp}
         )
 
-    async def get_xp(self, discordID: int, guildID: int) -> int:
+    async def get_xp(self, discordID: int,
+                     guildID: int) -> int:
         res = await self.bot.db.fetch(
             'SELECT xp FROM aika_users '
             'WHERE discordid = %s AND guildid = %s',
@@ -50,7 +53,8 @@ class User(commands.Cog):
     # Also, you may notice this cooldown is global - that is intentional!
     # Aika xp is designed to be like this, it will keep the global leaderboards
     # accurate - otherwise people could spam in 5x more servers for 5x more xp :P
-    async def blocked_until(self, discordID: int, guildID: int) -> Union[int, bool]:
+    async def blocked_until(self, discordID: int,
+                            guildID: int) -> Union[int, bool]:
         # Check if they're in the cache.
         if (discordID, guildID) in self.chatxp_cache:
             return self.chatxp_cache[(discordID, guildID)]
@@ -65,7 +69,8 @@ class User(commands.Cog):
 
         return ret['last_xp'] if ret else True
 
-    async def can_collect_xp(self, discordID: int, guildID: int) -> bool:
+    async def can_collect_xp(self, discordID: int,
+                             guildID: int) -> bool:
         return (await self.blocked_until(discordID, guildID) - time.time()) <= 0
 
     async def update_cooldown(self, discordID: int, guildID: int,
@@ -95,10 +100,12 @@ class User(commands.Cog):
             if not override:
                 await self.update_cooldown(discordID, guildID)
 
-    async def calculate_xp(self, level: float) -> int:
+    @staticmethod
+    async def calculate_xp(level: float) -> int:
         return int((level ** 2.0) * 50.0)
 
-    async def calculate_level(self, xp: int) -> float:
+    @staticmethod
+    async def calculate_level(xp: int) -> float:
         return sqrt(xp / 50.0)
 
     async def get_rank(self, guildID: int, xp: int) -> int:
@@ -172,10 +179,7 @@ class User(commands.Cog):
             icon_url = target.avatar_url
         )
 
-        e.add_field(
-            name = 'ID',
-            value = target.id
-        )
+        e.add_field(name = 'ID', value = target.id)
 
         xp = await self.get_xp(target.id, target.guild.id)
         lv = await self.calculate_level(xp)
@@ -239,7 +243,7 @@ class User(commands.Cog):
         e.set_author(
             name = f'Aika (Aika#7862)',
             url = 'https://github.com/cmyui/Aika',
-            icon_url = 'https://a.akatsuki.pw/u/999'
+            icon_url = 'https://a.akatsuki.pw/999'
         )
 
         e.add_field(
@@ -252,7 +256,8 @@ class User(commands.Cog):
                 "[Support Development](https://akatsuki.pw/donate)"
             )
         )
-        e.set_thumbnail(url = 'https://cdn.discordapp.com/avatars/285190493703503872/b1503731c4cf2f173df883aa57ff45d7.webp?size=1024')
+
+        e.set_thumbnail(url = 'https://a.akatsuki.pw/999')
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e)
 
