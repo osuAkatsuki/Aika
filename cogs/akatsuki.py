@@ -6,7 +6,7 @@
 # i'm witing it for my own use case.
 
 import asyncio
-from typing import Dict, List, Optional, Union, Tuple
+from typing import Dict, List, Optional, Union
 import discord
 from discord.ext import commands, tasks
 
@@ -32,6 +32,7 @@ FAQ = Dict[str, Union[int, str]]
 class Akatsuki(commands.Cog):
     def __init__(self, bot: Aika):
         self.bot = bot
+        self._faq = None
 
         loop = asyncio.get_event_loop()
         loop.create_task(self.load_faq())
@@ -624,17 +625,24 @@ class Akatsuki(commands.Cog):
     ### FAQ ###
     ###########
 
-    async def load_faq(self) -> Tuple[FAQ]:
-        if not (res := await self.bot.db.fetchall('SELECT * FROM aika_faq ORDER BY id ASC')):
+    async def load_faq(self) -> None:
+        res = await self.bot.db.fetchall(
+            'SELECT * FROM aika_faq ORDER BY id ASC'
+        )
+
+        if not res:
             raise Exception('FAQ cog enabled, but FAQ empty in database!')
-        return tuple(res)
+
+        self._faq = res
 
     async def add_faq(self, topic: str, title: str, content: str) -> None:
         printc(f'Adding new FAQ topic - {topic}.', Ansi.GREEN)
         await self.bot.db.execute(
             'INSERT INTO aika_faq (id, topic, title, content) '
-            'VALUES (NULL, %s, %s, %s)', [topic, title, content])
-        self.faq = await self.load_faq() # suboptimal but so rare who cares?
+            'VALUES (NULL, %s, %s, %s)', [topic, title, content]
+        )
+
+        await self.load_faq()
 
     # TODO: _rm_faq(), although this will be a bit weird with id & topic valid..
 
@@ -675,7 +683,7 @@ class Akatsuki(commands.Cog):
         # TODO: man this is so damn ugly
         for i in split[1:]:
             types.append('id' if i.isdecimal() else 'topic')
-            for f in self.faq:
+            for f in self._faq:
                 if i == str(f[types[-1]]): break
             else:
                 invalid.append(i)
@@ -685,7 +693,7 @@ class Akatsuki(commands.Cog):
                 f'The following callbacks could not be resolved: {", ".join(invalid)}.')
 
         for idx, uinput in enumerate(split[1:]):
-            if len(select := [f for f in self.faq if str(f[types[idx]]) == uinput]) and (select := select[0]):
+            if len(select := [f for f in self._faq if str(f[types[idx]]) == uinput]) and (select := select[0]):
                 e = discord.Embed(
                     title = select['title'],
                     description = select['content'].format(**self.bot.config.faq_replacements),

@@ -169,10 +169,13 @@ class User(commands.Cog):
 
         e.set_author(
             name = f'{target.display_name} ({target.name}#{target.discriminator})',
-            icon_url = target.avatar_url)
+            icon_url = target.avatar_url
+        )
+
         e.add_field(
             name = 'ID',
-            value = target.id)
+            value = target.id
+        )
 
         xp = await self.get_xp(target.id, target.guild.id)
         lv = await self.calculate_level(xp)
@@ -188,18 +191,22 @@ class User(commands.Cog):
         e.add_field(
             name = 'Account creation',
             value = format_date(target.created_at),
-            inline = False)
+            inline = False
+        )
+
         e.add_field(
             name = 'Server joined',
             value = format_date(target.joined_at),
-            inline = False)
+            inline = False
+        )
 
         not_everyone = lambda r: r.position != 0
         if (roles := [r.mention for r in filter(not_everyone, target.roles)]):
             e.add_field(
                 name = 'Roles',
                 value = ' | '.join(reversed(roles)),
-                inline = False)
+                inline = False
+            )
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         e.set_thumbnail(url = target.avatar_url)
