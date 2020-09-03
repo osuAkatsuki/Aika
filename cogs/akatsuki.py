@@ -5,6 +5,7 @@
 # to use it, butplease don't expect support or really any use out of this code;
 # i'm witing it for my own use case.
 
+import asyncio
 from typing import Dict, List, Optional, Union, Tuple
 import discord
 from discord.ext import commands, tasks
@@ -31,7 +32,9 @@ FAQ = Dict[str, Union[int, str]]
 class Akatsuki(commands.Cog):
     def __init__(self, bot: Aika):
         self.bot = bot
-        self.faq: Tuple[FAQ] = self.load_faq()
+
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.load_faq())
 
         if self.bot.config.server_build:
             # We only want this to run when
@@ -105,7 +108,7 @@ class Akatsuki(commands.Cog):
     ############
 
     async def get_osu(self, discordID: int) -> Optional[int]:
-        res = self.bot.db.fetch(
+        res = await self.bot.db.fetch(
             'SELECT a.osu_id id, u.username name, u.privileges priv '
             'FROM aika_akatsuki a LEFT JOIN users u ON u.id = a.osu_id '
             'WHERE a.discordid = %s', [discordID]
@@ -114,7 +117,7 @@ class Akatsuki(commands.Cog):
         return res if res and res['id'] else None
 
     async def get_osu_from_name(self, username: str) -> Optional[int]:
-        return res if (res := self.bot.db.fetch(
+        return res if (res := await self.bot.db.fetch(
             'SELECT id, username name, privileges priv '
             'FROM users WHERE username = %s',
             [username]
@@ -172,7 +175,7 @@ class Akatsuki(commands.Cog):
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
-            if not (res := self.bot.db.fetchall(' '.join([
+            if not (res := await self.bot.db.fetchall(' '.join([
                 'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo,',
                 's.mods, s.300_count n300, s.100_count n100,',
                 's.50_count n50, s.misses_count nmiss, s.time, s.completed,',
@@ -190,7 +193,7 @@ class Akatsuki(commands.Cog):
 
             e = discord.Embed(colour = self.bot.config.embed_colour)
 
-            clan = self.bot.db.fetch(
+            clan = await self.bot.db.fetch(
                 'SELECT c.tag FROM users u '
                 'LEFT JOIN clans c ON c.id = u.clan_id '
                 'WHERE u.id = %s', [user['id']]
@@ -364,7 +367,7 @@ class Akatsuki(commands.Cog):
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
-            if not (res := self.bot.db.fetch(' '.join([
+            if not (res := await self.bot.db.fetch(' '.join([
                 # Get all information we need for the embed.
                 'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo,',
                 's.mods, s.300_count n300, s.100_count n100,',
@@ -386,7 +389,7 @@ class Akatsuki(commands.Cog):
                 url = f"https://akatsuki.pw/b/{res['bid']}",
                 colour = self.bot.config.embed_colour)
 
-            clan = self.bot.db.fetch(
+            clan = await self.bot.db.fetch(
                 'SELECT c.tag FROM users u '
                 'LEFT JOIN clans c ON c.id = u.clan_id '
                 'WHERE u.id = %s', [user['id']]
@@ -521,7 +524,7 @@ class Akatsuki(commands.Cog):
             ]))
 
         # "Unlock" the account by setting the ID to 0 instead of null
-        self.bot.db.execute(
+        await self.bot.db.execute(
             'INSERT INTO aika_akatsuki VALUES (%s, 0) '
             'ON DUPLICATE KEY UPDATE osu_id = 0',
             [ctx.author.id]
@@ -555,7 +558,7 @@ class Akatsuki(commands.Cog):
         supporter = discord.utils.get(akatsuki.roles, name = 'Supporter')
 
         res = defaultdict(lambda: 0, {
-            row['id']: row['privileges'] for row in self.bot.db.fetchall(
+            row['id']: row['privileges'] for row in await self.bot.db.fetchall(
                 'SELECT a.discordid id, u.privileges FROM aika_akatsuki a '
                 'LEFT JOIN users u ON u.id = a.osu_id WHERE a.osu_id'
             )
@@ -621,17 +624,17 @@ class Akatsuki(commands.Cog):
     ### FAQ ###
     ###########
 
-    def load_faq(self) -> Tuple[FAQ]:
-        if not (res := self.bot.db.fetchall('SELECT * FROM aika_faq ORDER BY id ASC')):
+    async def load_faq(self) -> Tuple[FAQ]:
+        if not (res := await self.bot.db.fetchall('SELECT * FROM aika_faq ORDER BY id ASC')):
             raise Exception('FAQ cog enabled, but FAQ empty in database!')
         return tuple(res)
 
-    def add_faq(self, topic: str, title: str, content: str) -> None:
+    async def add_faq(self, topic: str, title: str, content: str) -> None:
         printc(f'Adding new FAQ topic - {topic}.', Ansi.GREEN)
-        self.bot.db.execute(
+        await self.bot.db.execute(
             'INSERT INTO aika_faq (id, topic, title, content) '
             'VALUES (NULL, %s, %s, %s)', [topic, title, content])
-        self.faq = self.load_faq() # suboptimal but so rare who cares?
+        self.faq = await self.load_faq() # suboptimal but so rare who cares?
 
     # TODO: _rm_faq(), although this will be a bit weird with id & topic valid..
 
@@ -643,7 +646,7 @@ class Akatsuki(commands.Cog):
     async def faq(self, ctx: ContextWrap) -> None:
         # TODO fix: you can do something like !faq cert 2 (if id for cert was 2) to print a callback twice.
         if len(split := list(dict.fromkeys(ctx.message.content.split(' ')))) not in range(2, 5):
-            if not (res := self.bot.db.fetchall(
+            if not (res := await self.bot.db.fetchall(
                 'SELECT topic title, title value FROM aika_faq')):
                 return await ctx.send(
                     'No FAQ callbacks could be fetched from MySQL.')
@@ -721,7 +724,7 @@ class Akatsuki(commands.Cog):
             return await ctx.send(
                 f'Your content is {e} characters too long.')
 
-        self.add_faq(*split)
+        await self.add_faq(*split)
         await ctx.send('New FAQ topic added!')
 
 def setup(bot: commands.Bot):

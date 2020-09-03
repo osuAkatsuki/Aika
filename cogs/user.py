@@ -20,7 +20,7 @@ class User(commands.Cog):
         self.voice_xp.cancel()
 
     async def set_xp(self, discordID: int, guildID: int, xp: int) -> None:
-        self.bot.db.execute(
+        await self.bot.db.execute(
             'INSERT INTO aika_users (discordid, guildid, xp) '
             'VALUES (%(discord)s, %(guild)s, %(xp)s) '
             'ON DUPLICATE KEY UPDATE xp = %(xp)s',
@@ -28,7 +28,7 @@ class User(commands.Cog):
         )
 
     async def add_xp(self, discordID: int, guildID: int, xp: int) -> None:
-        self.bot.db.execute(
+        await self.bot.db.execute(
             'INSERT INTO aika_users (discordid, guildid, xp) '
             'VALUES (%(discord)s, %(guild)s, %(xp)s) '
             'ON DUPLICATE KEY UPDATE xp = xp + %(xp)s',
@@ -36,7 +36,7 @@ class User(commands.Cog):
         )
 
     async def get_xp(self, discordID: int, guildID: int) -> int:
-        res = self.bot.db.fetch(
+        res = await self.bot.db.fetch(
             'SELECT xp FROM aika_users '
             'WHERE discordid = %s AND guildid = %s',
             [discordID, guildID]
@@ -50,34 +50,35 @@ class User(commands.Cog):
     # Also, you may notice this cooldown is global - that is intentional!
     # Aika xp is designed to be like this, it will keep the global leaderboards
     # accurate - otherwise people could spam in 5x more servers for 5x more xp :P
-    async def blocked_until(self, discordID: int) -> Union[int, bool]:
+    async def blocked_until(self, discordID: int, guildID: int) -> Union[int, bool]:
         # Check if they're in the cache.
-        if discordID in self.chatxp_cache:
-            return self.chatxp_cache[discordID]
+        if (discordID, guildID) in self.chatxp_cache:
+            return self.chatxp_cache[(discordID, guildID)]
 
         # Get from the db.
-        ret = self.bot.db.fetch(
+        ret = await self.bot.db.fetch(
             'SELECT last_xp FROM '
-            'aika_users WHERE id = %s',
-            [discordID]
+            'aika_users WHERE discordid = %s '
+            'AND guildid = %s',
+            [discordID, guildID]
         )
 
         return ret['last_xp'] if ret else True
 
-    async def can_collect_xp(self, discordID: int) -> bool:
-        return (await self.blocked_until(discordID) - time.time()) <= 0
+    async def can_collect_xp(self, discordID: int, guildID: int) -> bool:
+        return (await self.blocked_until(discordID, guildID) - time.time()) <= 0
 
-    async def update_cooldown(self, discordID: int,
+    async def update_cooldown(self, discordID: int, guildID: int,
                               seconds: int = 60) -> None:
         # Update the cache
         t = int(time.time() + seconds)
-        self.chatxp_cache[discordID] = t
+        self.chatxp_cache[(discordID, guildID)] = t
 
         # Update the db.
-        self.bot.db.execute(
+        await self.bot.db.execute(
             'UPDATE aika_users SET last_xp = %s '
             'WHERE discordid = %s AND guildid = %s',
-            [t, discordID]
+            [t, discordID, guildID]
         )
 
     async def increment_xp(self, discordID: int, guildID: int,
@@ -87,12 +88,12 @@ class User(commands.Cog):
             await self.create_user(discordID, guildID)
 
         # Make sure the user is allowed to claim xp.
-        if override or await self.can_collect_xp(discordID):
+        if override or await self.can_collect_xp(discordID, guildID):
             xprange = (int(i * multiplier) for i in self.bot.config.xp['range'])
             await self.add_xp(discordID, guildID, randrange(*xprange))
 
             if not override:
-                await self.update_cooldown(discordID)
+                await self.update_cooldown(discordID, guildID)
 
     async def calculate_xp(self, level: float) -> int:
         return int((level ** 2.0) * 50.0)
@@ -101,7 +102,7 @@ class User(commands.Cog):
         return sqrt(xp / 50.0)
 
     async def get_rank(self, guildID: int, xp: int) -> int:
-        res = self.bot.db.fetch(
+        res = await self.bot.db.fetch(
             'SELECT (COUNT(*) + 1) r FROM aika_users '
             'WHERE guildid = %s AND xp > %s',
             [guildID, xp]
@@ -111,7 +112,7 @@ class User(commands.Cog):
 
     async def user_exists(self, discordID: int,
                           guildID: int) -> bool:
-        return self.bot.db.fetch(
+        return await self.bot.db.fetch(
             'SELECT 1 FROM aika_users WHERE '
             'discordid = %s AND guildid = %s',
             [discordID, guildID]
@@ -119,7 +120,7 @@ class User(commands.Cog):
 
     async def create_user(self, discordID: int,
                           guildID: int) -> None:
-        self.bot.db.execute(
+        await self.bot.db.execute(
             'INSERT IGNORE INTO aika_users '
             '(discordid, guildid) VALUES (%s, %s)',
             [discordID, guildID]
@@ -240,7 +241,7 @@ class User(commands.Cog):
                 "A multipurpose Discord bot written by [cmyui](https://github.com/cmyui) for osu!Akatsuki, and general bot functionality.\n\n"
 
                 "[**Server Invite**](https://discord.com/api/oauth2/authorize?client_id=702310727515504710&permissions=0&scope=bot)\n"
-                "[Command Reference](https://github.com/Aika#commands)\n"
+                "[Command Reference](https://github.com/cmyui/Aika#commands)\n"
                 "[Support Development](https://akatsuki.pw/donate)"
             )
         )
@@ -252,7 +253,7 @@ class User(commands.Cog):
     @commands.guild_only()
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def leaderboard(self, ctx: ContextWrap) -> None:
-        res = self.bot.db.fetchall(
+        res = await self.bot.db.fetchall(
             'SELECT discordid id, xp FROM aika_users '
             'WHERE guildid = %s AND xp > 0 '
             'ORDER BY xp DESC LIMIT 10',

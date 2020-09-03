@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import asyncio
 from typing import Union, Optional
-from cmyui import SQLPool
-from cmyui.mysql import SQLPool
+from cmyui import AsyncSQLPool
 import discord
 import aiohttp
 from math import sqrt
@@ -97,26 +97,19 @@ class Aika(commands.Bot):
         super().__init__(commands.when_mentioned_or(self.config.prefix),
                          owner_id = self.config.discord_owner,
                          help_command = None)
-        self.connect_db()
         self.resp_cache = []
-
-        for e in self.config.initial_extensions:
-            try:
-                self.load_extension(f'cogs.{e}')
-            except Exception as e:
-                print(f'Failed to load extension {e}.')
-                traceback.print_exc()
 
     #########
     # MySQL #
     #########
 
-    def connect_db(self) -> None:
+    async def connect_db(self) -> None:
         if hasattr(self, 'db'):
             return
 
         try:
-            self.db = SQLPool(**self.config.mysql, pool_size = 4)
+            self.db = AsyncSQLPool()
+            await self.db.connect(**self.config.mysql)
         except SQLError as err:
             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
                 raise Exception('SQLError: Incorrect username/password.')
@@ -261,7 +254,7 @@ class Aika(commands.Bot):
                 any(s in self.config.filters for s in msg.split()))
 
     async def print_console(self, msg: discord.Message, col: Ansi) -> None:
-        if not (res := self.db.fetch(
+        if not (res := await self.db.fetch(
             'SELECT xp FROM aika_users '
             'WHERE discordid = %s AND guildid = %s',
             [msg.author.id, msg.guild.id]
@@ -288,10 +281,28 @@ class Aika(commands.Bot):
             activity = discord.Game(f'Akat: {online}, Servers: {len(self.guilds)}'),
             status = discord.Status.online)
 
-    def run(self) -> None:
+    def run(self, *args, **kwargs) -> None:
+        async def runner():
+            await self.connect_db()
+
+            for e in self.config.initial_extensions:
+                try:
+                    self.load_extension(f'cogs.{e}')
+                except Exception as e:
+                    print(f'Failed to load extension {e}.')
+                    traceback.print_exc()
+
+            try:
+                await self.start(self.config.discord_token, *args, **kwargs)
+            except:
+                await self.close()
+
+        loop = asyncio.get_event_loop()
+        loop.create_task(runner())
+
         try:
             self.bg_loop.start()
-            super().run(self.config.discord_token)
+            loop.run_forever()
         finally:
             self.bg_loop.cancel()
 
