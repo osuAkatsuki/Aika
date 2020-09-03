@@ -21,25 +21,28 @@ class User(commands.Cog):
 
     async def set_xp(self, discordID: int, guildID: int, xp: int) -> None:
         self.bot.db.execute(
-            'INSERT INTO aika_xp (discord_id, guild_id, xp) '
+            'INSERT INTO aika_users (discordid, guildid, xp) '
             'VALUES (%(discord)s, %(guild)s, %(xp)s) '
             'ON DUPLICATE KEY UPDATE xp = %(xp)s',
-            {'discord': discordID, 'guild': guildID, 'xp': xp})
+            {'discord': discordID, 'guild': guildID, 'xp': xp}
+        )
 
     async def add_xp(self, discordID: int, guildID: int, xp: int) -> None:
         self.bot.db.execute(
-            'INSERT INTO aika_xp (discord_id, guild_id, xp) '
+            'INSERT INTO aika_users (discordid, guildid, xp) '
             'VALUES (%(discord)s, %(guild)s, %(xp)s) '
             'ON DUPLICATE KEY UPDATE xp = xp + %(xp)s',
-            {'discord': discordID, 'guild': guildID, 'xp': xp})
+            {'discord': discordID, 'guild': guildID, 'xp': xp}
+        )
 
     async def get_xp(self, discordID: int, guildID: int) -> int:
-        return res['xp'] if (
-            res := self.bot.db.fetch(
-                'SELECT xp FROM aika_xp '
-                'WHERE discord_id = %s AND guild_id = %s',
-                [discordID, guildID])
-            ) else 0
+        res = self.bot.db.fetch(
+            'SELECT xp FROM aika_users '
+            'WHERE discordid = %s AND guildid = %s',
+            [discordID, guildID]
+        )
+
+        return res['xp'] if res else 0
 
     # We never want our XP to be inaccurate, so we only use
     # a cache-like system for reading, and save to DB every write.
@@ -48,28 +51,42 @@ class User(commands.Cog):
     # Aika xp is designed to be like this, it will keep the global leaderboards
     # accurate - otherwise people could spam in 5x more servers for 5x more xp :P
     async def blocked_until(self, discordID: int) -> Union[int, bool]:
-        if not (ret := self.chatxp_cache.get(discordID)):
-            return ret['cd'] if (ret := self.bot.db.fetch(
-                'SELECT xp_cooldown AS cd FROM aika_users WHERE id = %s',
-                [discordID] # return true so we don't start the user off
-            )) else True # if they're new and don't have an account.
-        return ret
+        # Check if they're in the cache.
+        if discordID in self.chatxp_cache:
+            return self.chatxp_cache[discordID]
+
+        # Get from the db.
+        ret = self.bot.db.fetch(
+            'SELECT last_xp FROM '
+            'aika_users WHERE id = %s',
+            [discordID]
+        )
+
+        return ret['last_xp'] if ret else True
 
     async def can_collect_xp(self, discordID: int) -> bool:
         return (await self.blocked_until(discordID) - time.time()) <= 0
 
-    async def update_cooldown(self, discordID: int, seconds: int = 60) -> None:
+    async def update_cooldown(self, discordID: int,
+                              seconds: int = 60) -> None:
+        # Update the cache
         t = int(time.time() + seconds)
         self.chatxp_cache[discordID] = t
+
+        # Update the db.
         self.bot.db.execute(
-            'UPDATE aika_users SET xp_cooldown = %s '
-            'WHERE id = %s', [t, discordID])
+            'UPDATE aika_users SET last_xp = %s '
+            'WHERE discordid = %s AND guildid = %s',
+            [t, discordID]
+        )
 
     async def increment_xp(self, discordID: int, guildID: int,
                            multiplier: float = 1.0, override: bool = False) -> None:
-        if not await self.user_exists(discordID):
-            await self.create_user(discordID)
+        # Create the user if they don't already exist.
+        if not await self.user_exists(discordID, guildID):
+            await self.create_user(discordID, guildID)
 
+        # Make sure the user is allowed to claim xp.
         if override or await self.can_collect_xp(discordID):
             xprange = (int(i * multiplier) for i in self.bot.config.xp['range'])
             await self.add_xp(discordID, guildID, randrange(*xprange))
@@ -84,21 +101,29 @@ class User(commands.Cog):
         return sqrt(xp / 50.0)
 
     async def get_rank(self, guildID: int, xp: int) -> int:
-        return res['r'] if (res := self.bot.db.fetch(
-            'SELECT (COUNT(*) + 1) r FROM aika_xp '
-            'WHERE guild_id = %s AND xp > %s',
+        res = self.bot.db.fetch(
+            'SELECT (COUNT(*) + 1) r FROM aika_users '
+            'WHERE guildid = %s AND xp > %s',
             [guildID, xp]
-        )) else 0
+        )
 
-    async def user_exists(self, discordID: int) -> bool:
+        return res['r'] if res else 0
+
+    async def user_exists(self, discordID: int,
+                          guildID: int) -> bool:
         return self.bot.db.fetch(
-            'SELECT 1 FROM aika_users WHERE id = %s',
-            [discordID]) is not None
+            'SELECT 1 FROM aika_users WHERE '
+            'discordid = %s AND guildid = %s',
+            [discordID, guildID]
+        ) is not None
 
-    async def create_user(self, discordID: int) -> None:
+    async def create_user(self, discordID: int,
+                          guildID: int) -> None:
         self.bot.db.execute(
-            'INSERT IGNORE INTO aika_users (id) VALUES (%s)',
-            [discordID])
+            'INSERT IGNORE INTO aika_users '
+            '(discordid, guildid) VALUES (%s, %s)',
+            [discordID, guildID]
+        )
 
     # sadly the listeners are called after the main listeners meaning there isn't really a clean
     # way to increment xp before displying their xp a user types !xp, so if they can gain xp, the
@@ -127,8 +152,8 @@ class User(commands.Cog):
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
     async def user(self, ctx: ContextWrap) -> None:
-        if not await self.user_exists(ctx.author.id):
-            await self.create_user(ctx.author.id)
+        if not await self.user_exists(ctx.author.id, ctx.guild.id):
+            await self.create_user(ctx.author.id, ctx.guild.id)
 
         not_aika = lambda u: u != self.bot.user
 
@@ -206,21 +231,18 @@ class User(commands.Cog):
         e.set_author(
             name = f'Aika (Aika#7862)',
             url = 'https://github.com/cmyui/Aika',
-            icon_url = 'https://a.akatsuki.pw/u/999')
+            icon_url = 'https://a.akatsuki.pw/u/999'
+        )
 
         e.add_field(
             name = 'Introduction',
-            value = \
-                "I'm a Discord bot written by [cmyui](https://github.com/cmyui) "
-                "both as an official bot for [Akatsuki](https://akatsuki.pw), and "
-                "also just to be a solid general-purpose bot.\n\n"
+            value = (
+                "A multipurpose Discord bot written by [cmyui](https://github.com/cmyui) for osu!Akatsuki, and general bot functionality.\n\n"
 
-                "I have some pretty cool features you might find cool too.. Especially "
-                "if you're looking for Akatsuki commands, of course..\n\n"
-
-                "[Read up on my commands](https://github.com/cmyui/Aika#commands)\n"
-                "[Support development](https://akatsuki.pw/donate)\n"
-                "[**Invite me to your server**](https://discord.com/api/oauth2/authorize?client_id=702310727515504710&permissions=0&scope=bot)\n"
+                "[**Server Invite**](https://discord.com/api/oauth2/authorize?client_id=702310727515504710&permissions=0&scope=bot)\n"
+                "[Command Reference](https://github.com/Aika#commands)\n"
+                "[Support Development](https://akatsuki.pw/donate)"
+            )
         )
         e.set_thumbnail(url = 'https://cdn.discordapp.com/avatars/285190493703503872/b1503731c4cf2f173df883aa57ff45d7.webp?size=1024')
         e.set_footer(text = f'Aika v{self.bot.config.version}')
@@ -230,12 +252,15 @@ class User(commands.Cog):
     @commands.guild_only()
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def leaderboard(self, ctx: ContextWrap) -> None:
-        if not (res := self.bot.db.fetchall(
-            'SELECT discord_id id, xp FROM aika_xp '
-            'WHERE guild_id = %s AND xp > 0 '
+        res = self.bot.db.fetchall(
+            'SELECT discordid id, xp FROM aika_users '
+            'WHERE guildid = %s AND xp > 0 '
             'ORDER BY xp DESC LIMIT 10',
-            [ctx.guild.id])
-        ): return await self.leaderboard(ctx)
+            [ctx.guild.id]
+        )
+
+        if not res:
+            return await self.leaderboard(ctx)
 
         lb = Leaderboard()
 
@@ -246,7 +271,8 @@ class User(commands.Cog):
         e = discord.Embed(
             title = 'XP/Level Leaderboards',
             colour = self.bot.config.embed_colour,
-            description = repr(lb))
+            description = repr(lb)
+        )
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e)
@@ -256,8 +282,10 @@ class User(commands.Cog):
     async def voice_xp(self) -> None:
         await self.bot.wait_until_ready()
 
-        is_voice = lambda c: isinstance(c, discord.VoiceChannel) \
-                         and c != c.guild.afk_channel
+        is_voice = lambda c: (
+            isinstance(c, discord.VoiceChannel) and
+            c != c.guild.afk_channel
+        )
 
         for channel in filter(is_voice, self.bot.get_all_channels()):
             if len(channel.voice_states) < 2: # Channel has < 2 people
@@ -268,9 +296,13 @@ class User(commands.Cog):
                     continue
 
                 multiplier = 1.0
-                if state.self_video: multiplier *= 2
-                if state.self_stream: multiplier *= 1.5
-                if state.self_mute: multiplier /= 2
+                if state.self_video:
+                    multiplier *= 2
+                if state.self_stream:
+                    multiplier *= 1.5
+                if state.self_mute:
+                    multiplier /= 2
+
                 await self.increment_xp(member, channel.guild.id, multiplier, override = True)
 
 def setup(bot: commands.Bot):

@@ -1,10 +1,12 @@
+# -*- coding: utf-8 -*-
+
 from typing import Final
 from enum import IntEnum
-from re import compile as re_compile
+import re
 
 regexes = {
-    'beatmap_url': re_compile(r'(?:https?://)?(?:www.)?akatsuki.pw/b/(?P<bid>\d{1,7})/?'),
-    'song_name': re_compile(r'(?P<artist>.+) - (?P<sn>.+)\[(?P<diff>.+)\]')
+    'beatmap_url': re.compile(r'(?:https?://)?(?:www.)?akatsuki.pw/b/(?P<bid>\d{1,7})/?'),
+    'song_name': re.compile(r'(?P<artist>.+) - (?P<sn>.+)\[(?P<diff>.+)\]')
 }
 
 class Ansi(IntEnum):

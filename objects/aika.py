@@ -136,12 +136,12 @@ class Aika(commands.Bot):
         if not msg.content or msg.author.bot:
             return
 
-        filtered = msg.guild.id == self.config.akatsuki['id'] \
-               and await self.filter_content(msg.content.lower())
+        filtered = (msg.guild.id == self.config.akatsuki['id'] and
+                    await self.filter_content(msg.content.lower()))
 
-        colour = Ansi.LIGHT_MAGENTA if msg.author.bot \
-            else Ansi.LIGHT_RED if filtered \
-            else Ansi.LIGHT_CYAN
+        colour = (Ansi.LIGHT_MAGENTA if msg.author.bot else
+                  Ansi.LIGHT_RED if filtered else
+                  Ansi.LIGHT_CYAN)
 
         await self.print_console(msg, colour)
 
@@ -159,8 +159,8 @@ class Aika(commands.Bot):
         or before.content == after.content:
             return
 
-        filtered = after.guild.id == self.config.akatsuki['id'] \
-               and await self.filter_content(after.content.lower())
+        filtered = (after.guild.id == self.config.akatsuki['id'] and
+                    await self.filter_content(after.content.lower()))
 
         colour = Ansi.LIGHT_RED if filtered else Ansi.LIGHT_YELLOW
         await self.print_console(after, colour)
@@ -257,13 +257,13 @@ class Aika(commands.Bot):
         if not (self.config.filters or self.config.substring_filters):
             return False # filters disabled
 
-        return any(f in msg for f in self.config.substring_filters) \
-            or any(s in self.config.filters for s in msg.split())
+        return (any(f in msg for f in self.config.substring_filters) or
+                any(s in self.config.filters for s in msg.split()))
 
     async def print_console(self, msg: discord.Message, col: Ansi) -> None:
         if not (res := self.db.fetch(
-            'SELECT xp FROM aika_xp '
-            'WHERE discord_id = %s AND guild_id = %s',
+            'SELECT xp FROM aika_users '
+            'WHERE discordid = %s AND guildid = %s',
             [msg.author.id, msg.guild.id]
         )): res = {'xp': 0} # user's first time talking.
 
@@ -274,7 +274,7 @@ class Aika(commands.Bot):
             reset = Ansi.RESET, msg = msg.clean_content.replace('\u001b', '')
         ))
 
-    @tasks.loop(seconds = 15)
+    @tasks.loop(seconds = 30)
     async def bg_loop(self) -> None:
         await self.wait_until_ready()
 

@@ -105,11 +105,13 @@ class Akatsuki(commands.Cog):
     ############
 
     async def get_osu(self, discordID: int) -> Optional[int]:
-        return res if (res := self.bot.db.fetch(
-            'SELECT au.osu_id id, u.username name, u.privileges priv '
-            'FROM aika_users au LEFT JOIN users u ON u.id = au.osu_id '
-            'WHERE au.id = %s', [discordID]
-        )) and res['id'] else None
+        res = self.bot.db.fetch(
+            'SELECT a.osu_id id, u.username name, u.privileges priv '
+            'FROM aika_akatsuki a LEFT JOIN users u ON u.id = a.osu_id '
+            'WHERE a.discordid = %s', [discordID]
+        )
+
+        return res if res and res['id'] else None
 
     async def get_osu_from_name(self, username: str) -> Optional[int]:
         return res if (res := self.bot.db.fetch(
@@ -240,8 +242,8 @@ class Akatsuki(commands.Cog):
                 calc = Owoppai()
 
                 # "fc" is atleast 98% of fc combo + no misses
-                is_fc = row['s_combo'] > int(row['b_combo'] * 0.98) \
-                    and row['nmiss'] == 0
+                is_fc = (row['s_combo'] > int(row['b_combo'] * 0.98) and
+                         row['nmiss'] == 0)
 
                 if is_fc:
                     fcAcc = row['acc']
@@ -428,8 +430,8 @@ class Akatsuki(commands.Cog):
             # along with star rating with mods.
             calc = Owoppai()
 
-            is_fc = res['s_combo'] > int(res['b_combo'] * 0.98) \
-                and res['nmiss'] == 0
+            is_fc = (res['s_combo'] > int(res['b_combo'] * 0.98) and
+                     res['nmiss'] == 0)
 
             if is_fc:
                 fcAcc = res['acc']
@@ -520,8 +522,10 @@ class Akatsuki(commands.Cog):
 
         # "Unlock" the account by setting the ID to 0 instead of null
         self.bot.db.execute(
-            'UPDATE aika_users SET osu_id = 0 WHERE id = %s',
-            [ctx.author.id])
+            'INSERT INTO aika_akatsuki VALUES (%s, 0) '
+            'ON DUPLICATE KEY UPDATE osu_id = 0',
+            [ctx.author.id]
+        )
 
         try: # TODO safely (i.e. not trycatch)
             await ctx.message.delete()
@@ -552,9 +556,8 @@ class Akatsuki(commands.Cog):
 
         res = defaultdict(lambda: 0, {
             row['id']: row['privileges'] for row in self.bot.db.fetchall(
-                'SELECT aika_users.id, users.privileges FROM aika_users '
-                'LEFT JOIN users ON users.id = aika_users.osu_id '
-                'WHERE aika_users.osu_id'
+                'SELECT a.discordid id, u.privileges FROM aika_akatsuki a '
+                'LEFT JOIN users u ON u.id = a.osu_id WHERE a.osu_id'
             )
         })
 
@@ -612,6 +615,7 @@ class Akatsuki(commands.Cog):
 
         e.set_footer(text = f'Aika v{self.bot.config.version}')
         await ctx.send(embed = e)
+
 
     ###########
     ### FAQ ###

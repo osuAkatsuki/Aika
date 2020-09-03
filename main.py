@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__all__ = []
+__all__ = ()
 
 if __name__ != '__main__':
     raise Exception('main.py is meant to be run directly.')

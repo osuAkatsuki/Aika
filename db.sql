@@ -1,8 +1,12 @@
 create table aika_users
 (
-  id               bigint primary key not null,
-  xp_cooldown      int default 0      not null,
-  osu_id           bigint             null
+	discordid bigint not null,
+	guildid bigint not null,
+	xp int default 0 not null,
+	last_xp int default 0 not null,
+	strikes smallint(6) default 0 not null comment 'I guess tinyint could be too small? lol',
+	notes varchar(2048) null comment 'Probably enough space?',
+	primary key (discordid, guildid)
 );
 
 create table aika_faq
@@ -21,10 +25,14 @@ create table aika_faq
     unique (topic)
 );
 
-create table aika_xp
+# For akatsuki-specific usage.
+create table aika_akatsuki
 (
-	discord_id bigint not null,
-	guild_id   bigint not null,
-	xp         int    not null,
-	primary key (discord_id, guild_id)
+	discordid bigint not null
+		primary key,
+	osu_id int null,
+	constraint aika_akatsuki_osu_id_uindex
+		unique (osu_id),
+	constraint aika_akatsuki_aika_users_discordid_fk
+		foreign key (discordid) references aika_users (discordid)
 );
