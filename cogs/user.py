@@ -249,10 +249,11 @@ class User(commands.Cog):
         e.add_field(
             name = 'Introduction',
             value = (
-                "A multipurpose Discord bot written by [cmyui](https://github.com/cmyui) for osu!Akatsuki, and general bot functionality.\n\n"
+                "A multipurpose Discord bot written by [cmyui](https://github.com/cmyui) "
+                "for [osu!Akatsuki](https://akatsuki.pw) support, moderation, activity tracking, and other general functionality.\n\n"
 
-                "[**Server Invite**](https://discord.com/api/oauth2/authorize?client_id=702310727515504710&permissions=0&scope=bot)\n"
-                "[Command Reference](https://github.com/cmyui/Aika#commands)\n"
+                "[**Server Invitation**](https://discord.com/api/oauth2/authorize?client_id=702310727515504710&permissions=0&scope=bot)\n"
+                "[Source code & Documentation](https://github.com/cmyui/Aika)\n"
                 "[Support Development](https://akatsuki.pw/donate)"
             )
         )

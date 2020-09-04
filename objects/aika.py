@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
+from collections import defaultdict
 from typing import Union, Optional
-from cmyui import AsyncSQLPool
+from cmyui import AsyncSQLPool, Version
 import discord
 import aiohttp
 from math import sqrt
@@ -59,36 +60,29 @@ class ContextWrap(commands.Context):
     __slots__ = ('message', 'bot')
 
     async def send(self, *args, **kwargs) -> Optional[discord.Message]:
-        # Check for a hit in our cache.
-        is_cached = lambda m: m['msg'] == self.message
-        hit = discord.utils.find(is_cached, self.bot.resp_cache)
-
-        if hit and (expired := (int(time.time()) - hit['expire']) > 0):
-            # We have a hit, but it's expired.
-            # Remove it from the cache, and use a new msg.
-            self.bot.resp_cache.remove(hit)
-            hit = False
-
+        # Allows for the syntax `ctx.send('content')`
         if len(args) == 1 and isinstance(args[0], str):
-            # Allows for the sytax: ctx.send('content')
             kwargs['content'] = args[0]
 
         # Clear previous msg params.
         kwargs['embed'] = kwargs.pop('embed', None)
         kwargs['content'] = kwargs.pop('content', None)
 
-        if hit: # cache hit - edit.
-            await (m := hit['resp']).edit(**kwargs)
-        else: # cache miss (or expired) - send.
-            m = await super().send(**kwargs)
-            self.bot.resp_cache.append({
-                'msg': self.message, # their msg
-                'resp': m, # our msg
-                'expire': int(time.time()) + (5 * 60)
-            })
+        cached = self.bot.resp_cache[self.message.id]
 
-        # Return our response message object.
-        return m
+        if cached and (time.time() - cached['timeout']) <= 0:
+            # We have cache and it's not expired.
+            msg = cached['resp']
+            await msg.edit(**kwargs)
+        else: # We either have no cached val, or it's expired.
+            msg = await super().send(**kwargs)
+
+            self.bot.resp_cache[self.message.id] = {
+                'resp': msg,
+                'timeout': int(time.time()) + 300 # 5 min
+            }
+
+        return msg
 
 class Aika(commands.Bot):
     __slots__ = ('db', 'resp_cache')
@@ -97,16 +91,15 @@ class Aika(commands.Bot):
         super().__init__(commands.when_mentioned_or(self.config.prefix),
                          owner_id = self.config.discord_owner,
                          help_command = None)
-        self.resp_cache = []
+        self.db: Optional[AsyncSQLPool] = None
+        self.resp_cache = defaultdict(lambda: None)
+        self.version = Version(1, 0, 0)
 
     #########
     # MySQL #
     #########
 
     async def connect_db(self) -> None:
-        if hasattr(self, 'db'):
-            return
-
         try:
             self.db = AsyncSQLPool()
             await self.db.connect(**self.config.mysql)
@@ -167,14 +160,15 @@ class Aika(commands.Bot):
     async def on_message_delete(self, msg: discord.Message) -> None:
         # Whenever a message is deleted, check if it was in
         # our cache, and delete it (so they don't accumulate).
-        is_cached = lambda m: m['msg'] == msg
+        cached = self.resp_cache[msg.id]
 
-        if (hit := discord.utils.find(is_cached, self.resp_cache)):
+        if cached:
             try:
-                await hit['resp'].delete()
-            except discord.NotFound: # No 403 - it's 100% our own message
-                pass # response has already been deleted
-            self.resp_cache.remove(hit)
+                await cached['resp'].delete()
+            except discord.NotFound: # No 403 since it's our own message.
+                pass # Response has already been deleted.
+
+            del self.resp_cache[msg.id]
 
     async def on_member_ban(self, guild: discord.Guild,
                             user: Union[discord.Member, discord.User]) -> None:
