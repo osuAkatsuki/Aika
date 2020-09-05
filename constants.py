@@ -6,7 +6,10 @@ import re
 
 regexes = {
     'beatmap_url': re.compile(r'(?:https?://)?(?:www.)?akatsuki.pw/b/(?P<bid>\d{1,7})/?'),
-    'song_name': re.compile(r'(?P<artist>.+) - (?P<sn>.+)\[(?P<diff>.+)\]')
+    'song_name': re.compile(r'(?P<artist>.+) - (?P<sn>.+)\[(?P<diff>.+)\]'),
+    'cmd_prefix': re.compile(r'^[\x21-\x3F\x41-\x7E]{1,8}$'),
+    'mention': re.compile(r'<@!?(?P<id>\d{18,20})>'),
+    'duration': re.compile(r'^(?P<duration>[1-9]\d*)(?P<period>s|m|h|d|w)?$')
 }
 
 class Ansi(IntEnum):

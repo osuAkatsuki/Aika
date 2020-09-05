@@ -73,20 +73,20 @@ class Akatsuki(commands.Cog):
                 faq_id = channels['faq']
                 help_id = channels['help']
 
-                await general.send('\n'.join([
+                await general.send('\n'.join((
                     f'Welcome {msg.author.mention} to Akatsuki!',
                     f'If you need help, check out <#{faq_id}>, or ask in <#{help_id}>.'
-                ]))
+                )))
 
             await msg.delete()
         elif msg.channel.id == channels['user_report']:
             if msg.role_mentions:
                 try:
-                    await msg.author.send('\n'.join([
+                    await msg.author.send('\n'.join((
                         'Your player report has not been submitted due to role mentions.',
                         'Please reformat your message without these mentions to submit a report.',
                         f'```\n{msg.clean_content}```'
-                    ]))
+                    )))
                 except discord.Forbidden:
                     printc(f'Failed to DM {msg.author}.', Ansi.LIGHT_RED)
                 return await msg.delete()
@@ -99,7 +99,7 @@ class Akatsuki(commands.Cog):
                 description = f'{msg.author.mention} has submitted a player report.'
             )
             e.add_field(name = 'Report content', value = msg.clean_content)
-            e.set_footer(text = f'Aika v{self.bot.config.version}')
+            e.set_footer(text = f'Aika v{self.bot.version}')
             await admin_reports.send(embed = e)
             await msg.delete()
 
@@ -109,20 +109,18 @@ class Akatsuki(commands.Cog):
     ############
 
     async def get_osu(self, discordID: int) -> Optional[int]:
-        res = await self.bot.db.fetch(
+        return await self.bot.db.fetch(
             'SELECT a.osu_id id, u.username name, u.privileges priv '
             'FROM aika_akatsuki a LEFT JOIN users u ON u.id = a.osu_id '
             'WHERE a.discordid = %s', [discordID]
         )
 
-        return res if res and res['id'] else None
-
     async def get_osu_from_name(self, username: str) -> Optional[int]:
-        return res if (res := await self.bot.db.fetch(
+        return await self.bot.db.fetch(
             'SELECT id, username name, privileges priv '
             'FROM users WHERE username = %s',
             [username]
-        )) and res['id'] else None
+        )
 
     @commands.command(aliases = ['t'])
     @commands.guild_only()
@@ -134,10 +132,10 @@ class Akatsuki(commands.Cog):
         if '-gm' in msg: # -gm <int>
             if len(msg) < (index := msg.index('-gm')) + 1 \
             or not msg[index + 1].isdecimal():
-                return await ctx.send('\n'.join([
+                return await ctx.send('\n'.join((
                     'Invalid syntax!',
                     '> Correct syntax: `!top <-rx, -gm 1> <username/@mention>`.'
-                ]))
+                )))
 
             msg.remove('-gm')
             if (gm := int(msg.pop(index))) not in range(2):
@@ -176,7 +174,7 @@ class Akatsuki(commands.Cog):
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
-            if not (res := await self.bot.db.fetchall(' '.join([
+            if not (res := await self.bot.db.fetchall(' '.join((
                 'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo,',
                 's.mods, s.300_count n300, s.100_count n100,',
                 's.50_count n50, s.misses_count nmiss, s.time, s.completed,',
@@ -189,7 +187,7 @@ class Akatsuki(commands.Cog):
                 'WHERE s.userid = %s AND s.play_mode = %s',
                 'AND b.ranked = 2 AND s.completed = 3',
                 'ORDER BY s.pp DESC LIMIT 3'
-                ]), [user['id'], gm]
+                )), [user['id'], gm]
             )): return await ctx.send('The user has no scores!')
 
             e = discord.Embed(colour = self.bot.config.embed_colour)
@@ -210,7 +208,8 @@ class Akatsuki(commands.Cog):
             e.set_author(
                 name = f"{plural(_name)} top 3 {gamemode_readable(gm)} plays.",
                 url = f"https://akatsuki.pw/u/{user['id']}?mode={gm}&rx={int(rx)}",
-                icon_url = f"https://a.akatsuki.pw/{user['id']}")
+                icon_url = f"https://a.akatsuki.pw/{user['id']}"
+            )
 
             # Store the score embed strings as a list initially since we
             # actually want to print the whole embed in a single block.
@@ -300,19 +299,19 @@ class Akatsuki(commands.Cog):
 
                 row['idx'] = idx + 1
 
-                scores.append('\n'.join([
+                scores.append('\n'.join((
                     '{idx}. [{sn}](https://akatsuki.pw/b/{bid})',
                     '▸ {grade} **{acc:,.2f}% {pp} {mods}**{fcPP}',
                     '▸ {{ {n100}x100, {n50}x50 }} {comboed}',
                     '▸ \⭐{difficulty:.2f} \🎵{bpm:,} \🕰️{length} **AR**{ar:.2f} **OD**{od:.2f}'
-                ]).format(**row))
+                )).format(**row))
 
             e.add_field(
                 name = '** **', # empty title
                 value = '\n'.join(scores)
             )
 
-            e.set_footer(text = f'Aika v{self.bot.config.version}')
+            e.set_footer(text = f'Aika v{self.bot.version}')
             e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
             await ctx.send(embed = e)
 
@@ -326,10 +325,10 @@ class Akatsuki(commands.Cog):
         if '-gm' in msg: # -gm <int>
             if len(msg) < (index := msg.index('-gm')) + 1 \
             or not msg[index + 1].isdecimal():
-                return await ctx.send('\n'.join([
+                return await ctx.send('\n'.join((
                     'Invalid syntax!',
                     '> Correct syntax: `!top <-rx, -gm 1> <username/@mention>`.'
-                ]))
+                )))
 
             msg.remove('-gm')
             if (gm := int(msg.pop(index))) not in range(2):
@@ -368,7 +367,7 @@ class Akatsuki(commands.Cog):
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
-            if not (res := await self.bot.db.fetch(' '.join([
+            if not (res := await self.bot.db.fetch(' '.join((
                 # Get all information we need for the embed.
                 'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo,',
                 's.mods, s.300_count n300, s.100_count n100,',
@@ -381,14 +380,15 @@ class Akatsuki(commands.Cog):
                 'LEFT JOIN beatmaps b USING(beatmap_md5)',
                 'WHERE b.ranked = 2 AND s.userid = %s',
                 'AND s.play_mode = %s',
-                'ORDER BY s.time DESC LIMIT 1']),
+                'ORDER BY s.time DESC LIMIT 1')),
                 [user['id'], gm]
             )): return await ctx.send('The user has no scores!')
 
             e = discord.Embed(
                 title = res['sn'],
                 url = f"https://akatsuki.pw/b/{res['bid']}",
-                colour = self.bot.config.embed_colour)
+                colour = self.bot.config.embed_colour
+            )
 
             clan = await self.bot.db.fetch(
                 'SELECT c.tag FROM users u '
@@ -406,7 +406,8 @@ class Akatsuki(commands.Cog):
             e.set_author(
                 name = f"{plural(_name)} most recent {gamemode_readable(gm)} play.",
                 url = f"https://akatsuki.pw/u/{user['id']}?mode={gm}&rx={int(rx)}",
-                icon_url = f"https://a.akatsuki.pw/{user['id']}")
+                icon_url = f"https://a.akatsuki.pw/{user['id']}"
+            )
 
             # Letter grade
             # This is done.. stragely
@@ -440,15 +441,19 @@ class Akatsuki(commands.Cog):
             if is_fc:
                 fcAcc = res['acc']
             else:
-                fcAcc = (calc_accuracy_std(
-                    n300 = res['n300'],
-                    n100 = res['n100'],
-                    n50 = res['n50'],
-                    nmiss = 0) if gm == 0 \
-                else calc_accuracy_taiko(
-                    n300 = res['n300'],
-                    n150 = res['n100'], # lol
-                    nmiss = 0)) * 100.0
+                fcAcc = (
+                    calc_accuracy_std(
+                        n300 = res['n300'],
+                        n100 = res['n100'],
+                        n50 = res['n50'],
+                        nmiss = 0
+                    ) if gm == 0 else
+                    calc_accuracy_taiko(
+                        n300 = res['n300'],
+                        n150 = res['n100'], # lol
+                        nmiss = 0
+                    )
+                ) * 100.0
 
             calc.configure(
                 filename = res['bid'],
@@ -477,12 +482,12 @@ class Akatsuki(commands.Cog):
                 res['mods'] = 'NM'
 
             embeds = {
-                'Score information': '\n'.join([
+                'Score information': '\n'.join((
                     '▸ {grade} **{acc:.2f}% {pp}** {mods} {s_combo:,}/{b_combo:,}x{fcPP}',
-                    '▸ {{ {n100}x100, {n50}x50, {nmiss}xM }}']),
-                'Beatmap information': '\n'.join([
+                    '▸ {{ {n100}x100, {n50}x50, {nmiss}xM }}')),
+                'Beatmap information': '\n'.join((
                     '**{ranked} \⭐ {difficulty:.2f} | {length} @ \🎵 {bpm}**',
-                    '**AR** {ar} **OD** {od} **[__[Download](https://akatsuki.pw/d/{bsid})__]**'])
+                    '**AR** {ar} **OD** {od} **[__[Download](https://akatsuki.pw/d/{bsid})__]**'))
             }
 
             for k, v in embeds.items():
@@ -495,7 +500,7 @@ class Akatsuki(commands.Cog):
             # format time played for the footer
             played_at = seconds_readable_full(int(time.time() - res['time']))
             e.set_footer(text = ' | '.join([
-                f'Aika v{self.bot.config.version}',
+                f'Aika v{self.bot.version}',
                 f'Score submitted {played_at} ago.'
             ]))
 
@@ -507,22 +512,22 @@ class Akatsuki(commands.Cog):
     @commands.guild_only()
     async def link(self, ctx: ContextWrap) -> None:
         if user := await self.get_osu(ctx.author.id):
-            return await ctx.send('\n'.join([
+            return await ctx.send('\n'.join((
                 'Your Discord has already been linked to an osu!Akatsuki account!',
                 'If you would like to remove this, please contact cmyui#0425 directly.',
                 f'> **https://akatsuki.pw/u/{user["id"]}**'
-            ]))
+            )))
 
         try: # Send PM first, since if we fail we need to warn user.
-            await ctx.author.send('\n'.join([
+            await ctx.author.send('\n'.join((
                 'Please paste the following command into #osu (or dm with Aika) ingame.',
                 f'> `!vdiscord {((ctx.author.id << 0o14) | 0x993) >> 1}`'
-            ]))
+            )))
         except discord.Forbidden:
-            return await ctx.send('\n'.join([
+            return await ctx.send('\n'.join((
                 'I was unable to DM you your code!',
                 'You probably have DMs from non-friends disabled on Discord..'
-            ]))
+            )))
 
         # "Unlock" the account by setting the ID to 0 instead of null
         await self.bot.db.execute(
@@ -604,20 +609,20 @@ class Akatsuki(commands.Cog):
             description = 'A place to report users who have broken the Law:tm:'
         )
 
-        e.add_field(name = 'Information & Rules', value = '\n'.join([
+        e.add_field(name = 'Information & Rules', value = '\n'.join((
             "To keep things running smoothly, we have a couple of rules.\n",
             "1. Please do not ping any staff members here, we will get to your report; no need to rush us.",
             "2. Please only submit one report - make sure you've included all information before submitting!"
-        ]))
+        )))
 
-        e.add_field(name = 'Report format', value = '\n'.join([
+        e.add_field(name = 'Report format', value = '\n'.join((
             'Please submit all reports using the following format:```',
             '<player profile url>',
             '<reason>',
             '<additional comments>```'
-        ]))
+        )))
 
-        e.set_footer(text = f'Aika v{self.bot.config.version}')
+        e.set_footer(text = f'Aika v{self.bot.version}')
         await ctx.send(embed = e)
 
 
@@ -668,14 +673,14 @@ class Akatsuki(commands.Cog):
             e = discord.Embed(
                 colour = self.bot.config.embed_colour,
                 title = 'Availble topics',
-                description = '\n'.join([
+                description = '\n'.join((
                     f"You'll need to provide an id or topic (accepts multiple delimited by space; max 4).",
                     f'**Syntax**: `!{ctx.invoked_with} <id/topic>`',
                     repr(lb)
-                ])
+                ))
             )
 
-            e.set_footer(text = f'Aika v{self.bot.config.version}')
+            e.set_footer(text = f'Aika v{self.bot.version}')
             return await ctx.send(embed = e)
 
         invalid: List[FAQ] = []
@@ -700,7 +705,7 @@ class Akatsuki(commands.Cog):
                     description = select['content'].format(**self.bot.config.faq_replacements),
                     colour = self.bot.config.embed_colour
                 )
-                e.set_footer(text = f'Aika v{self.bot.config.version}')
+                e.set_footer(text = f'Aika v{self.bot.version}')
                 e.set_thumbnail(url = self.bot.config.thumbnails['faq'])
                 await ctx.send(embed = e)
 
@@ -711,10 +716,10 @@ class Akatsuki(commands.Cog):
     async def addfaq(self, ctx: ContextWrap, *, new_faq) -> None:
         # format: topic|title|content
         if len(split := new_faq.split('|')) != 3:
-            return await ctx.send('\n'.join([
+            return await ctx.send('\n'.join((
                 'Invalid syntax.',
                 '> Correct syntax: `topic|title|content`'
-            ]))
+            )))
 
         split = [s.strip() for s in split]
 

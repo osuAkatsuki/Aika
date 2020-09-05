@@ -94,7 +94,7 @@ class User(commands.Cog):
 
         # Make sure the user is allowed to claim xp.
         if override or await self.can_collect_xp(discordID, guildID):
-            xprange = (int(i * multiplier) for i in self.bot.config.xp['range'])
+            xprange = [int(i * multiplier) for i in self.bot.config.xp['range']]
             await self.add_xp(discordID, guildID, randrange(*xprange))
 
             if not override:
@@ -166,10 +166,10 @@ class User(commands.Cog):
         not_aika = lambda u: u != self.bot.user
 
         if len(mentions := list(filter(not_aika, ctx.message.mentions))) > 1:
-            return await ctx.send('\n'.join([
+            return await ctx.send('\n'.join((
                 'Invalid syntax - only one user can be fetched at a time.',
                 '**Correct syntax**: `!user (optional: @user)`'
-            ]))
+            )))
 
         e = discord.Embed(colour = self.bot.config.embed_colour)
         target = mentions[0] if mentions else ctx.author
@@ -205,14 +205,14 @@ class User(commands.Cog):
         )
 
         not_everyone = lambda r: r.position != 0
-        if (roles := [r.mention for r in filter(not_everyone, target.roles)]):
+        if roles := [r.mention for r in filter(not_everyone, target.roles)]:
             e.add_field(
                 name = 'Roles',
                 value = ' | '.join(reversed(roles)),
                 inline = False
             )
 
-        e.set_footer(text = f'Aika v{self.bot.config.version}')
+        e.set_footer(text = f'Aika v{self.bot.version}')
         e.set_thumbnail(url = target.avatar_url)
         await ctx.send(embed = e) # TODO: cmyui.codes/u/ profiles?
 
@@ -221,18 +221,18 @@ class User(commands.Cog):
     @commands.guild_only()
     async def levelreq(self, ctx: ContextWrap, *, _lv) -> None:
         if not (level := try_parse_float(_lv)):
-            return await ctx.send('\n'.join([
+            return await ctx.send('\n'.join((
                 'Invalid syntax.',
                 '> Correct syntax: `!lvreq <level>`.'
-            ]))
+            )))
 
         total_xp = await self.calculate_xp(level)
         current_xp = await self.get_xp(ctx.author.id, ctx.guild.id)
         pc = (current_xp / total_xp) * 100.0 if current_xp < total_xp else 100.0
-        await ctx.send('\n'.join([
+        await ctx.send('\n'.join((
             f'**Level progression to {level:.2f}.**',
             f'> `{current_xp:,}/{total_xp:,}xp ({pc:.2f}%)`'
-        ]))
+        )))
 
     # TODO: re-create global leaderboard for all servers
 
@@ -259,7 +259,7 @@ class User(commands.Cog):
         )
 
         e.set_thumbnail(url = 'https://a.akatsuki.pw/999')
-        e.set_footer(text = f'Aika v{self.bot.config.version}')
+        e.set_footer(text = f'Aika v{self.bot.version}')
         await ctx.send(embed = e)
 
     @commands.command(aliases = ['lvtop', 'xptop', 'xplb', 'lb', 'xpleaderboard'])
@@ -288,7 +288,7 @@ class User(commands.Cog):
             description = repr(lb)
         )
 
-        e.set_footer(text = f'Aika v{self.bot.config.version}')
+        e.set_footer(text = f'Aika v{self.bot.version}')
         await ctx.send(embed = e)
 
     # Voice Chat XP
@@ -317,7 +317,8 @@ class User(commands.Cog):
                 if state.self_mute:
                     multiplier /= 2
 
-                await self.increment_xp(member, channel.guild.id, multiplier, override = True)
+                await self.increment_xp(member, channel.guild.id,
+                                        multiplier, override = True)
 
 def setup(bot: commands.Bot):
     bot.add_cog(User(bot))

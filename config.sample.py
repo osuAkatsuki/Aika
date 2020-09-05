@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # extensions to be used on boot
-initial_extensions = [
-    'user', 'utility'
-]
-
-# command prefix for all commands.
-prefix = '!'
+initial_extensions = ('user', 'utility', 'guild')
 
 # bot owner's discord ID.
 discord_owner = 123456789012345678

@@ -1,0 +1,208 @@
+# -*- coding: utf-8 -*-
+
+import discord
+from discord.ext import commands, tasks
+import time
+
+from objects.aika import Aika, ContextWrap
+import constants
+
+class Guild(commands.Cog):
+    def __init__(self, bot: Aika):
+        self.bot = bot
+
+    @commands.command()
+    @commands.guild_only()
+    @commands.has_permissions(manage_guild=True)
+    async def setprefix(self, ctx: ContextWrap, *, prefix) -> None:
+        regex = constants.regexes['cmd_prefix']
+
+        if not regex.match(prefix):
+            return await ctx.send(
+                f'Invalid prefix! Must match `{regex.pattern}`.')
+
+        # Update in SQL.
+        await self.bot.db.execute(
+            'UPDATE aika_guilds '
+            'SET cmd_prefix = %s'
+            'WHERE guildid = %s',
+            [prefix, ctx.guild.id]
+        )
+
+        # Update in cache.
+        self.bot.guild_cache[ctx.guild.id]['cmd_prefix'] = prefix
+
+        return await ctx.send('Successfully updated prefix!')
+
+    @commands.command()
+    @commands.guild_only()
+    @commands.has_guild_permissions(manage_guild=True)
+    async def moderation(self, ctx: ContextWrap) -> None:
+        split = ctx.message.content.split(maxsplit=1)
+        if len(split) < 2 or (new := split[1]) not in ('on', 'off'):
+            return await ctx.send('Invalid syntax: !moderation <on/off>')
+
+        new_str = 'Enabled' if (new := new == 'on') else 'Disabled'
+
+        if self.bot.guild_cache[ctx.guild.id]['moderation'] == new:
+            return await ctx.send(f'Moderation is already {new_str}, silly!')
+
+        if new:
+            # We are enabling moderation! Ensure all is ready.
+
+            # Create the muted role if it doesn't already exist.
+            if not discord.utils.get(ctx.guild.roles, name='muted'):
+                role = await ctx.guild.create_role(
+                    name = 'muted',
+                    color = discord.Colour(0xE73C82), # pinkish
+                    reason = 'Aika moderation enabled.'
+                )
+
+                # Set it's permissions in each text channel.
+                for chan in ctx.guild.text_channels:
+                    await chan.set_permissions(role, send_messages = False)
+
+                # TODO: perhaps mute people in voice channels as well?
+
+        else:
+            # We are disabling moderation! Remove everything.
+
+            # Remove the muted role if it exists.
+            if r := discord.utils.get(ctx.guild.roles, name='muted'):
+                await r.delete(reason='Aika moderation disabled.')
+
+        # Update in SQL.
+        await self.bot.db.execute(
+            'UPDATE aika_guilds SET moderation = %s '
+            'WHERE guildid = %s',
+            [new, ctx.guild.id]
+        )
+
+        # Update in cache.
+        self.bot.guild_cache[ctx.guild.id]['moderation'] = new
+
+        await ctx.send(f"{new_str} moderation.")
+
+    @commands.command()
+    @commands.guild_only()
+    @commands.has_guild_permissions(ban_members=True)
+    async def strike(self, ctx: ContextWrap) -> None:
+        guild_opts = self.bot.guild_cache[ctx.guild.id]
+
+        if not guild_opts['moderation']:
+            return await ctx.send('Moderation must be enabled with `!moderation on`!')
+
+        mentions = ctx.message.mentions
+        max_strikes = guild_opts['max_strikes']
+        msg = []
+
+        for u in mentions:
+            # Make sure we have sufficient perms.
+            if u.top_role >= ctx.author.top_role:
+                continue
+
+            # Update the strikes count.
+            await self.bot.db.execute(
+                'INSERT INTO aika_users '
+                '(discordid, guildid, strikes) '
+                'VALUES (%s, %s, 1) '
+                'ON DUPLICATE KEY UPDATE strikes = strikes + 1',
+                [u.id, ctx.guild.id]
+            )
+
+            # Get the new count.
+            # XXX: this has a weird tendency to not get
+            # up-to-date data? if you spam this cmd, it
+            # will show the same strikecount for a while lol..
+            # Guessing it's some kind of sql cache..
+            # will learn more later.
+            res = await self.bot.db.fetch(
+                'SELECT strikes FROM aika_users '
+                'WHERE discordid = %s AND guildid = %s',
+                [u.id, ctx.guild.id], _dict=False
+            )
+
+            if (nstrikes := res[0]) >= max_strikes:
+                await u.ban(
+                    reason = 'Reached strike limit.',
+                    delete_message_days = 0
+                )
+                msg.append(f'> **{u.name}**: {nstrikes} (banned)')
+            else:
+                msg.append(f'> **{u.name}**: {nstrikes}')
+
+        # Construct a response containing the user's new statuses.
+        results = '\n'.join(msg)
+        await ctx.send(
+            f"Strikes applied successfully.\n{results}\n"
+            f"Remember that reaching {max_strikes} will result in a ban!"
+        )
+
+    @commands.command()
+    @commands.guild_only()
+    @commands.has_guild_permissions(mute_members=True)
+    async def mute(self, ctx: ContextWrap) -> None:
+        if not self.bot.guild_cache[ctx.guild.id]['moderation']:
+            return await ctx.send('Moderation must be enabled with `!moderation on`!')
+
+        # Filter mentions out of the message to isolate duration.
+        msg = ctx.message.content.split(maxsplit=1)
+        if len(msg) < 2:
+            return await ctx.send('Invalid syntax: `!mute <duration> <@mention ...>`.')
+
+        regexes = constants.regexes
+
+        # Isolate duration in message.
+        duration_str = regexes['mention'].sub('', msg[1]).replace(' ', '')
+
+        # Parse duration_str into duration & period.
+        re = regexes['duration'].match(duration_str)
+
+        if not re:
+            return await ctx.send('Invalid duration.')
+
+        duration = int(re['duration'])
+        period = re['period']
+
+        # Adjust the duration for the period.
+        if   period == 'm': duration *= 60
+        elif period == 'h': duration *= 3600
+        elif period == 'd': duration *= 86400
+        elif period == 'w': duration *= 604800
+
+        mutes = []
+
+        muted = discord.utils.get(ctx.guild.roles, name='muted')
+
+        if not muted:
+            return await ctx.send('Could not find the muted role!')
+
+        for u in ctx.message.mentions:
+            # We don't want to mute a user who has greater
+            # permissions than us, or who is already muted.
+            if u.top_role >= ctx.author.top_role or muted in u.roles:
+                continue
+
+            # Apply mute with the duration specified.
+            await u.add_roles(muted)
+            mutes.append(u)
+
+            # Update the mute time into sql
+            # in case we restart the bot.
+            await self.bot.db.execute(
+                'UPDATE aika_users SET muted_until = %s '
+                'WHERE discordid = %s and guildid = %s',
+                [int(time.time() + duration), u.id, ctx.guild.id]
+            )
+
+            self.bot.loop.create_task(self.bot.remove_role_in(u, duration, muted))
+
+        if not mutes:
+            return await ctx.send(f'No changes were made.')
+
+        users = ', '.join([u.mention for u in mutes])
+        await ctx.send(f"Mute(s) applied to {users}.")
+
+
+def setup(bot: commands.Bot):
+    bot.add_cog(Guild(bot))

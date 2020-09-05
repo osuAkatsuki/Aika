@@ -2,8 +2,9 @@
 
 import asyncio
 from collections import defaultdict
-from typing import Union, Optional
-from cmyui import AsyncSQLPool, Version
+from multiprocessing.connection import Client
+from typing import Union, Optional, Dict, Any
+import cmyui
 import discord
 import aiohttp
 from math import sqrt
@@ -13,6 +14,7 @@ from datetime import (datetime as dt,
 import traceback
 import time
 import orjson
+from pandas.core.common import any_none
 
 from constants import Ansi
 from mysql.connector import errorcode, Error as SQLError
@@ -57,8 +59,6 @@ class Leaderboard:
 # their previous) response rather than just creating a new one.
 # With: ctx.send(...) // Without: self.bot.send(ctx, ...)
 class ContextWrap(commands.Context):
-    __slots__ = ('message', 'bot')
-
     async def send(self, *args, **kwargs) -> Optional[discord.Message]:
         # Allows for the syntax `ctx.send('content')`
         if len(args) == 1 and isinstance(args[0], str):
@@ -85,15 +85,31 @@ class ContextWrap(commands.Context):
         return msg
 
 class Aika(commands.Bot):
-    __slots__ = ('db', 'resp_cache')
+    __slots__ = ('db', 'http',
+                 'resp_cache', 'guild_cache',
+                 'version')
 
     def __init__(self) -> None:
-        super().__init__(commands.when_mentioned_or(self.config.prefix),
-                         owner_id = self.config.discord_owner,
-                         help_command = None)
-        self.db: Optional[AsyncSQLPool] = None
+        super().__init__(
+            owner_id = self.config.discord_owner,
+            command_prefix = self.when_mentioned_or_prefix(),
+            help_command = None
+        )
+
+        self.db: Optional[cmyui.AsyncSQLPool] = None
+        self.http_sess: Optional[aiohttp.ClientSession] = None
+
         self.resp_cache = defaultdict(lambda: None)
-        self.version = Version(1, 0, 0)
+        self.guild_cache: Optional[Dict[int, Any]] = None
+
+        self.version = cmyui.Version(1, 1, 0)
+
+    def when_mentioned_or_prefix(self):
+        def inner(bot, msg):
+            prefix = self.guild_cache[msg.guild.id]['cmd_prefix']
+            return commands.when_mentioned_or(prefix)(bot, msg)
+
+        return inner
 
     #########
     # MySQL #
@@ -101,7 +117,7 @@ class Aika(commands.Bot):
 
     async def connect_db(self) -> None:
         try:
-            self.db = AsyncSQLPool()
+            self.db = cmyui.AsyncSQLPool()
             await self.db.connect(**self.config.mysql)
         except SQLError as err:
             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
@@ -116,6 +132,35 @@ class Aika(commands.Bot):
     ##########
     # Events #
     ##########
+
+    async def on_guild_join(self, guild: discord.Guild) -> None:
+        await self.wait_until_ready()
+
+        # Insert into database.
+        await self.db.execute(
+            'INSERT INTO aika_servers '
+            '(guildid) VALUES (%s)',
+            [guild.id]
+        )
+
+        # Add to cache.
+        self.guild_cache[guild.id] = {
+            'cmd_prefix': '!'
+        }
+
+    async def on_guild_remove(self, guild: discord.Guild) -> None:
+        await self.wait_until_ready()
+
+        # Delete from database.
+        # TODO: maybe don't..? needs more consideration
+        await self.db.execute(
+            'DELETE FROM aika_servers '
+            'WHERE guildid = %s',
+            [guild.id]
+        )
+
+        # Remove from cache.
+        del self.guild_cache[guild.id]
 
     async def on_message(self, msg: discord.Message) -> None:
         await self.wait_until_ready()
@@ -179,6 +224,41 @@ class Aika(commands.Bot):
         if not hasattr(self, 'uptime'):
             self.uptime = time.time()
 
+        """ load all pending mutes from sql into tasks """
+
+        res = await self.db.fetchall(
+            'SELECT discordid, guildid, muted_until '
+            'FROM aika_users WHERE muted_until != 0'
+        )
+
+        async def reset_mute(discordid: int, guildid: int) -> None:
+            await self.db.execute(
+                'UPDATE aika_users SET muted_until = 0 '
+                'WHERE discordid = %s and guildid = %s',
+                [discordid, guildid]
+            )
+
+        for row in res:
+            # get the guild
+            if not (g := self.get_guild(row['guildid'])):
+                await reset_mute(row['discordid'], row['guildid'])
+                continue
+
+            # get the member
+            if not (m := g.get_member(row['discordid'])):
+                await reset_mute(row['discordid'], row['guildid'])
+                continue
+
+            # get the muted role
+            if not (r := discord.utils.get(g.roles, name='muted')):
+                await reset_mute(row['discordid'], row['guildid'])
+                continue
+
+            duration = max(0, time.time() - row['muted_until'])
+
+            # Enqueue the task to remove their mute when complete.
+            self.loop.create_task(self.remove_role_in(m, duration, r))
+
         print('{col}Ready{reset}: {user} ({userid})'.format(
               col = repr(Ansi.GREEN), reset = repr(Ansi.RESET),
               user = self.user, userid = self.user.id))
@@ -231,7 +311,8 @@ class Aika(commands.Bot):
     ########
 
     async def process_commands(self, message):
-        if message.author.bot: return
+        if message.author.bot:
+            return
 
         ctx = await self.get_context(message, cls = ContextWrap)
         await self.invoke(ctx)
@@ -239,6 +320,18 @@ class Aika(commands.Bot):
     #########
     # Utils #
     #########
+
+    @staticmethod
+    async def add_role_in(member: discord.Member,
+                          duration: int, *roles) -> None:
+        await asyncio.sleep(duration)
+        await member.add_roles(*roles)
+
+    @staticmethod
+    async def remove_role_in(member: discord.Member,
+                             duration: int, *roles) -> None:
+        await asyncio.sleep(duration)
+        await member.remove_roles(*roles)
 
     async def filter_content(self, msg: str) -> bool:
         if not (self.config.filters or self.config.substring_filters):
@@ -265,11 +358,12 @@ class Aika(commands.Bot):
     async def bg_loop(self) -> None:
         await self.wait_until_ready()
 
-        async with aiohttp.ClientSession() as s:
-            online = orjson.loads(html)['result'] if (
-                html := await self.fetch(
-                    s, 'http://144.217.254.156:5001/api/v1/onlineUsers')
-            ) else 0
+        akat_url = 'http://144.217.254.156:5001/api/v1/onlineUsers'
+        async with self.http_sess.get(akat_url) as r:
+            if r.status == 200:
+                online = (await r.json(content_type=None))['result']
+            else:
+                online = 0
 
         await self.change_presence(
             activity = discord.Game(f'Akat: {online}, Servers: {len(self.guilds)}'),
@@ -277,18 +371,39 @@ class Aika(commands.Bot):
 
     def run(self, *args, **kwargs) -> None:
         async def runner():
+            # get our db connection & http client
             await self.connect_db()
 
-            for e in self.config.initial_extensions:
-                try:
-                    self.load_extension(f'cogs.{e}')
-                except Exception as e:
-                    print(f'Failed to load extension {e}.')
-                    traceback.print_exc()
+            self.http_sess = aiohttp.ClientSession(json_serialize=orjson.dumps)
+
+            # load guild settings into cache
+            res = await self.db.fetchall('SELECT * FROM aika_guilds')
+
+            self.guild_cache = {
+                row['guildid']: {k: row[k] for k in set(row) - {'guildid'}}
+                for row in res
+            }
+
+            try: # load all of Aika's enabled cogs.
+                [self.load_extension(f'cogs.{e}')
+                 for e in self.config.initial_extensions]
+            except Exception as e:
+                print(f'Failed to load extension {e}.')
+                traceback.print_exc()
 
             try:
-                await self.start(self.config.discord_token, *args, **kwargs)
+                await self.start(self.config.discord_token,
+                                 *args, **kwargs)
             except:
+                # close http session
+                await self.http_sess.close()
+
+                # close db conn pool.
+                self.db.pool.close()
+                await self.db.pool.wait_closed()
+
+                # close any discordpy
+                # bot related stuff.
                 await self.close()
 
         loop = asyncio.get_event_loop()
@@ -299,11 +414,6 @@ class Aika(commands.Bot):
             loop.run_forever()
         finally:
             self.bg_loop.cancel()
-
-    @staticmethod
-    async def fetch(session, url):
-        async with session.get(url) as resp:
-            return await resp.text() if resp.status == 200 else None
 
     @property
     def config(self):

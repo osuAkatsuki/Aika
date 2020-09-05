@@ -8,8 +8,8 @@ if __name__ != '__main__':
 from os import chdir, path
 from utils import ensure_config
 
-if __name__ == '__main__':
-    chdir(path.dirname(path.realpath(__file__)))
-    if ensure_config():
-        from objects.aika import Aika
-        (aika := Aika()).run()
+chdir(path.dirname(path.realpath(__file__)))
+
+if ensure_config():
+    from objects.aika import Aika
+    (aika := Aika()).run()
