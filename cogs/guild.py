@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import asyncio
 import discord
 from discord.ext import commands, tasks
 import time
@@ -190,9 +189,9 @@ class Guild(commands.Cog):
 
         # Adjust the duration for the period.
         if   period == 'm': duration *= 60
-        elif period == 'h': duration *= 3600
-        elif period == 'd': duration *= 86400
-        elif period == 'w': duration *= 604800
+        elif period == 'h': duration *= 60 * 60
+        elif period == 'd': duration *= 60 * 60 * 24
+        elif period == 'w': duration *= 60 * 60 * 24 * 7
 
         mutes = []
 
@@ -201,30 +200,31 @@ class Guild(commands.Cog):
         if not muted:
             return await ctx.send('Could not find the muted role!')
 
-        for u in ctx.message.mentions:
+        for member in ctx.message.mentions:
             # We don't want to mute a user who has greater
             # permissions than us, or who is already muted.
-            if u.top_role >= ctx.author.top_role or muted in u.roles:
+            if member.top_role >= ctx.author.top_role or muted in member.roles:
                 continue
 
             # Apply mute with the duration specified.
-            await u.add_roles(muted)
-            mutes.append(u)
+            await member.add_roles(muted)
+            mutes.append(member)
 
             # Update the mute time into sql
             # in case we restart the bot.
             await self.bot.db.execute(
                 'UPDATE aika_users SET muted_until = %s '
-                'WHERE discordid = %s and guildid = %s',
-                [int(time.time() + duration), u.id, ctx.guild.id]
+                'WHERE discordid = %s AND guildid = %s',
+                [int(time.time() + duration), member.id, ctx.guild.id]
             )
 
-            self.bot.loop.create_task(self.bot.remove_role_in(u, duration, muted))
+            self.bot.loop.create_task(
+                self.bot.remove_role_in(member, duration, muted))
 
         if not mutes:
             return await ctx.send(f'No changes were made.')
 
-        users = ', '.join([u.mention for u in mutes])
+        users = ', '.join([m.mention for m in mutes])
         await ctx.send(f"Mute(s) applied to {users}.")
 
 

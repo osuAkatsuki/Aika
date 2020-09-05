@@ -117,7 +117,7 @@ class Aika(commands.Bot):
         self.resp_cache = defaultdict(lambda: None)
         self.guild_cache: Optional[Dict[int, Any]] = None
 
-        self.version = cmyui.Version(1, 1, 0)
+        self.version = cmyui.Version(1, 1, 2)
 
     def when_mentioned_or_prefix(self):
         def inner(bot, msg):

@@ -125,46 +125,52 @@ class Akatsuki(commands.Cog):
     @commands.command(aliases = ['t'])
     @commands.guild_only()
     async def top(self, ctx: ContextWrap) -> None:
-        msg = ctx.message.content.split(' ')[1:] # Remove command from content
-        if (rx := '-rx' in msg): # Check for and remove -rx from command
+        msg = ctx.message.content.split(' ')[1:]
+
+        if (rx := '-rx' in msg):
+            # relax flag specified in command
             msg.remove('-rx')
 
-        if '-gm' in msg: # -gm <int>
-            if len(msg) < (index := msg.index('-gm')) + 1 \
-            or not msg[index + 1].isdecimal():
-                return await ctx.send(
-                    'Invalid syntax: `!top <-rx> <-gm #> <username/@mentions ...>`.')
+        if '-gm' in msg:
+            # gamemode flag specified in command
 
+            # get index of the -gm flag, and remove it.
+            idx = msg.index('-gm')
             msg.remove('-gm')
-            if (gm := int(msg.pop(index))) not in range(2):
-                return await ctx.send('Invalid gamemode (only osu! & osu!taiko supported).')
-        else: # no -gm flag present
+
+            # ensure the gm is present and is decimal
+            if len(msg) < idx or not msg[idx].isdecimal():
+                return await ctx.send(
+                    'Invalid syntax: `!top <-gm #> <-rx> <username/@mentions ...>`.')
+
+            # get the gm flag, make sure it's in valid range
+            gm = int(msg.pop(idx))
+            if gm not in range(2):
+                return await ctx.send(
+                    'Invalid gamemode (only osu! & osu!taiko supported).')
+
+        else:
+            # no gamemode flag specified, default to osu!standard
             gm = 0
 
-        if not msg: # Nothing specified, check for account link
-            if not all(users := [await self.get_osu(ctx.author.id)]):
-                return await ctx.send(
-                    'You must first link your Akatsuki account with **!link**!')
-        else: # They sent the user, either by mention or akatsuki username.
-            if ctx.message.mentions:
-                if not all(users := [await self.get_osu(i.id) for i in ctx.message.mentions]):
-                    return await ctx.send(
-                        "At least one of those people don't have their Akatsuki accoutnt linked!")
-            else: # Akatsuki username
-                # They can only specify one name here due to limitations with spaces.
-                # (not going to enforce underscores only).
-                if not all(users := [await self.get_osu_from_name(' '.join(msg))]):
-                    ret = ["We couldn't find a user by that username on Akatsuki."]
-                    if len(msg) > 1: ret.append( # Incase they're trying to..
-                        'Please note that while using an Akatsuki username '
-                        'as a paramter, only one user can be specified at a time.'
-                    )
-                    return await ctx.send('\n'.join(ret))
+        if not msg:
+            # no mentions or username specified, check for akatsuki link
+            users = [await self.get_osu(ctx.author.id)]
+        else:
+            # either mention or username provided
+            if mentions := ctx.message.mentions:
+                users = [await self.get_osu(m.id) for m in mentions]
+            else:
+                # XXX: while simple, this only allows a single name..
+                users = [await self.get_osu_from_name(' '.join(msg))]
 
-        if any(not u['priv'] & 1 for u in users) \
+        if not all(users):
+            return await ctx.send('Could not find all users specified.')
+
+        # only allow bot owner to fetch restricted users
+        if not all(u['priv'] & 1 for u in users) \
         and not ctx.author.id == self.bot.owner_id:
-            return await ctx.send(
-                "You have insufficient privileges.")
+            return await ctx.send('You have insufficient privileges.')
 
         if len(users) > 3:
             return await ctx.send(
@@ -316,44 +322,52 @@ class Akatsuki(commands.Cog):
     @commands.command(aliases = ['rc', 'rs', 'r'])
     @commands.guild_only()
     async def recent(self, ctx: ContextWrap) -> None:
-        msg = ctx.message.content.split(' ')[1:] # Remove command from content
-        if (rx := '-rx' in msg): # Check for and remove -rx from command
+        msg = ctx.message.content.split(' ')[1:]
+
+        # check command for flags
+
+        if (rx := '-rx' in msg):
+            # relax flag specified in command
             msg.remove('-rx')
 
-        if '-gm' in msg: # -gm <int>
-            if len(msg) < (index := msg.index('-gm')) + 1 \
-            or not msg[index + 1].isdecimal():
-                return await ctx.send('\n'.join((
-                    'Invalid syntax: `!top <-rx> <-gm #> <username/@mentions ...>`.'
-                )))
+        if '-gm' in msg:
+            # gamemode flag specified in command
 
+            # get index of the -gm flag, and remove it.
+            idx = msg.index('-gm')
             msg.remove('-gm')
-            if (gm := int(msg.pop(index))) not in range(2):
-                return await ctx.send('Invalid gamemode (only osu! & osu!taiko supported).')
-        else: # no -gm flag present
+
+            # ensure the gm is present and is decimal
+            if len(msg) < idx or not msg[idx].isdecimal():
+                return await ctx.send(
+                    'Invalid syntax: `!recent <-rx> <-gm #> <username/@mentions ...>`.')
+
+            # get the gm flag, make sure it's in valid range
+            gm = int(msg.pop(idx))
+            if gm not in range(2):
+                return await ctx.send(
+                    'Invalid gamemode (only osu! & osu!taiko supported).')
+
+        else:
+            # no gamemode flag specified, default to osu!standard
             gm = 0
 
-        if not msg: # Nothing specified, check for account link
-            if not all(users := [await self.get_osu(ctx.author.id)]):
-                return await ctx.send(
-                    'You must first link your Akatsuki account with **!link**!')
-        else: # They sent the user, either by mention or akatsuki username.
-            if ctx.message.mentions:
-                if not all(users := [await self.get_osu(i.id) for i in ctx.message.mentions]):
-                    return await ctx.send(
-                        "At least one of those people don't have their Akatsuki accoutnt linked!")
-            else: # Akatsuki username
-                # They can only specify one name here due to limitations with spaces.
-                # (not going to enforce underscores only).
-                if not all(users := [await self.get_osu_from_name(' '.join(msg))]):
-                    ret = ["We couldn't find a user by that username on Akatsuki."]
-                    if len(msg) > 1: ret.append( # Incase they're trying to..
-                        'Please note that while using an Akatsuki username '
-                        'as a paramter, only one user can be specified at a time.'
-                    )
-                    return await ctx.send('\n'.join(ret))
+        if not msg:
+            # no mentions or username specified, check for akatsuki link
+            users = [await self.get_osu(ctx.author.id)]
+        else:
+            # either mention or username provided
+            if mentions := ctx.message.mentions:
+                users = [await self.get_osu(m.id) for m in mentions]
+            else:
+                # XXX: while simple, this only allows a single name..
+                users = [await self.get_osu_from_name(' '.join(msg))]
 
-        if any(not u['priv'] & 1 for u in users) \
+        if not all(users):
+            return await ctx.send('Could not find all users specified.')
+
+        # only allow bot owner to fetch restricted users
+        if not all(u['priv'] & 1 for u in users) \
         and not ctx.author.id == self.bot.owner_id:
             return await ctx.send(
                 "You have insufficient privileges.")
@@ -636,75 +650,68 @@ class Akatsuki(commands.Cog):
         if not res:
             raise Exception('FAQ cog enabled, but FAQ empty in database!')
 
-        self._faq = res
+        self._faq = {r['topic']: {'title': r['title'],
+                                  'content': r['content']}
+                     for r in res}
 
     async def add_faq(self, topic: str, title: str, content: str) -> None:
-        printc(f'Adding new FAQ topic - {topic}.', Ansi.GREEN)
+        if topic in self._faq:
+            return
+
+        printc(f'Adding new FAQ topic - {topic}.', Ansi.YELLOW)
         await self.bot.db.execute(
-            'INSERT INTO aika_faq (id, topic, title, content) '
-            'VALUES (NULL, %s, %s, %s)', [topic, title, content]
+            'INSERT INTO aika_faq '
+            '(id, topic, title, content) '
+            'VALUES (NULL, %s, %s, %s)',
+            [topic, title, content]
         )
 
-        await self.load_faq()
+        self._faq[topic] = {
+            'title': title,
+            'content': content
+        }
 
-    # TODO: _rm_faq(), although this will be a bit weird with id & topic valid..
+    async def rm_faq(self, topic: str) -> None:
+        if topic not in self._faq:
+            return
 
-    @commands.command(aliases = ['info', 'answer'])
+        printc(f'Removing FAQ topic - {topic}.', Ansi.YELLOW)
+        await self.bot.db.execute(
+            'DELETE FROM aika_faq '
+            'WHERE topic = %s',
+            [topic]
+        )
+
+        del self._faq[topic]
+
+    @commands.command()
     @commands.guild_only()
     @commands.check(akatsuki_only)
-    @commands.cooldown(1, 3, commands.BucketType.default) # 3s cooldown global
-    @commands.cooldown(1, 6, commands.BucketType.user)    # 6s cooldown for users
     async def faq(self, ctx: ContextWrap) -> None:
-        # TODO fix: you can do something like !faq cert 2 (if id for cert was 2) to print a callback twice.
-        if len(split := list(dict.fromkeys(ctx.message.content.split(' ')))) not in range(2, 5):
-            if not (res := await self.bot.db.fetchall(
-                'SELECT topic title, title value FROM aika_faq')):
-                return await ctx.send(
-                    'No FAQ callbacks could be fetched from MySQL.')
+        split = ctx.message.content.split()
+        topic = None
 
-            lb = Leaderboard(max_keylen = 14)
+        if len(split) != 2 or len(split[1]) > 32 or split[1] not in self._faq:
+            # either the size of the message is incorrect, or the topic
+            # was not found in self._faq, return our available faq list.
+            topics = {k: v['title'] for k, v in self._faq.items()}
 
-            for row in res:
-                lb.update({row['title']: row['value']})
-
-            e = discord.Embed(
-                colour = self.bot.config.embed_colour,
-                title = 'Availble topics',
-                description = '\n'.join((
-                    f"You'll need to provide an id or topic (accepts multiple delimited by space; max 4).",
-                    f'**Syntax**: `!{ctx.invoked_with} <id/topic>`',
-                    repr(lb)
-                ))
-            )
-
-            e.set_footer(text = f'Aika v{self.bot.version}')
-            return await ctx.send(embed = e)
-
-        invalid: List[FAQ] = []
-        types: List[str] = []
-
-        # TODO: man this is so damn ugly
-        for i in split[1:]:
-            types.append('id' if i.isdecimal() else 'topic')
-            for f in self._faq:
-                if i == str(f[types[-1]]): break
-            else:
-                invalid.append(i)
-
-        if invalid:
-            return await ctx.send(
-                f'The following callbacks could not be resolved: {", ".join(invalid)}.')
-
-        for idx, uinput in enumerate(split[1:]):
-            if len(select := [f for f in self._faq if str(f[types[idx]]) == uinput]) and (select := select[0]):
-                e = discord.Embed(
-                    title = select['title'],
-                    description = select['content'].format(**self.bot.config.faq_replacements),
-                    colour = self.bot.config.embed_colour
+            await ctx.send(embed=discord.Embed(
+                title = ('Topic not found. ' if topic else '') + 'Available FAQ',
+                description = (
+                    'Use `!faq <topic>` with a topic below for more info.\n'
+                    f'{Leaderboard(topics)!r}'
                 )
-                e.set_footer(text = f'Aika v{self.bot.version}')
-                e.set_thumbnail(url = self.bot.config.thumbnails['faq'])
-                await ctx.send(embed = e)
+            ))
+
+        else:
+            # They have requested a valid topic, send it back.
+            faq = self._faq[split[1]]
+
+            await ctx.send(embed=discord.Embed(
+                title = faq['title'],
+                description = faq['content']
+            ))
 
     @commands.command(aliases = ['newfaq'], hidden = True)
     @commands.guild_only()
@@ -712,25 +719,29 @@ class Akatsuki(commands.Cog):
     @commands.has_guild_permissions(ban_members = True) # somewhat arbitrary..
     async def addfaq(self, ctx: ContextWrap, *, new_faq) -> None:
         # format: topic|title|content
-        if len(split := new_faq.split('|')) != 3:
+        if len(split := new_faq.split('|', maxsplit=3)) != 3:
             return await ctx.send('\n'.join((
-                'Invalid syntax: `!addfaq <topic|title|content>`.'
+                'Invalid syntax: `!addfaq <topic> | <title> | <content>`.'
             )))
 
-        split = [s.strip() for s in split]
+        topic, title, content = [s.strip() for s in split]
 
         # topic cannot be an int or it will break id/topic search
-        if split[0].isdecimal():
+        if topic.isdecimal():
             return await ctx.send(
                 'Topic name cannot be a number (it may include them, but not be limited to just numbers).')
 
-        if (e := len(split[0]) - 0x20) > 0:
+        # subtract the max amount of characters into
+        # a var so we can send back the length overshot.
+        if (e := len(topic) - 32) > 0:
             return await ctx.send(
                 f'Your topic is {e} characters too long.')
-        elif (e := len(split[1]) - 0x7f) > 0:
+
+        if (e := len(title) - 127) > 0:
             return await ctx.send(
                 f'Your title is {e} characters too long.')
-        elif (e := len(split[2]) - 0x400) > 0:
+
+        if (e := len(content) - 1024) > 0:
             return await ctx.send(
                 f'Your content is {e} characters too long.')
 
