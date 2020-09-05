@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 
+import asyncio
 import discord
 from discord.ext import commands, tasks
 import time
 
-from objects.aika import Aika, ContextWrap
+from objects.aika import Aika, ContextWrap, Leaderboard
 import constants
 
 class Guild(commands.Cog):
@@ -40,7 +41,8 @@ class Guild(commands.Cog):
     async def moderation(self, ctx: ContextWrap) -> None:
         split = ctx.message.content.split(maxsplit=1)
         if len(split) < 2 or (new := split[1]) not in ('on', 'off'):
-            return await ctx.send('Invalid syntax: !moderation <on/off>')
+            return await ctx.send(
+                'Invalid syntax: `!moderation <on/off>`.')
 
         new_str = 'Enabled' if (new := new == 'on') else 'Disabled'
 
@@ -90,65 +92,87 @@ class Guild(commands.Cog):
         guild_opts = self.bot.guild_cache[ctx.guild.id]
 
         if not guild_opts['moderation']:
-            return await ctx.send('Moderation must be enabled with `!moderation on`!')
+            return await ctx.send(
+                'To use moderation, please first run `!moderation on`.')
 
-        mentions = ctx.message.mentions
+        if not (mentions := ctx.message.mentions):
+            return await ctx.send(
+                'Invalid syntax: `!strike <@mentions ...>`.')
+
         max_strikes = guild_opts['max_strikes']
-        msg = []
+        strikes = {}
 
         for u in mentions:
             # Make sure we have sufficient perms.
             if u.top_role >= ctx.author.top_role:
                 continue
 
-            # Update the strikes count.
-            await self.bot.db.execute(
-                'INSERT INTO aika_users '
-                '(discordid, guildid, strikes) '
-                'VALUES (%s, %s, 1) '
-                'ON DUPLICATE KEY UPDATE strikes = strikes + 1',
-                [u.id, ctx.guild.id]
-            )
-
-            # Get the new count.
-            # XXX: this has a weird tendency to not get
-            # up-to-date data? if you spam this cmd, it
-            # will show the same strikecount for a while lol..
-            # Guessing it's some kind of sql cache..
-            # will learn more later.
             res = await self.bot.db.fetch(
                 'SELECT strikes FROM aika_users '
                 'WHERE discordid = %s AND guildid = %s',
                 [u.id, ctx.guild.id], _dict=False
             )
 
-            if (nstrikes := res[0]) >= max_strikes:
-                await u.ban(
-                    reason = 'Reached strike limit.',
-                    delete_message_days = 0
+            if res:
+                # We have this user in the db.
+                if (nstrikes := res[0] + 1) >= max_strikes:
+                    await u.ban(
+                        reason = 'Reached strike limit.',
+                        delete_message_days = 0
+                    )
+
+                await self.bot.db.execute(
+                    'UPDATE aika_users SET strikes = strikes + 1 '
+                    'WHERE discordid = %s AND guildid = %s',
+                    [u.id, ctx.guild.id]
                 )
-                msg.append(f'> **{u.name}**: {nstrikes} (banned)')
+
             else:
-                msg.append(f'> **{u.name}**: {nstrikes}')
+                # This is the user's first interaction.
+                # This will probably never really happen?
+                # Why would you get striked without having
+                # claimed xp..? Either way.. here it is.
+                await self.bot.db.execute(
+                    'INSERT INTO aika_users '
+                    '(discordid, guildid, strikes) '
+                    'VALUES (%s, %s, 1)'
+                )
+
+                nstrikes = 1
+
+            if nstrikes >= max_strikes:
+                strikes.update({u.name: f'{nstrikes} (banned)'})
+            else:
+                strikes.update({u.name: nstrikes}) # no need to cast really..
+
+        if not strikes:
+            return await ctx.send('No changes were made.')
 
         # Construct a response containing the user's new statuses.
-        results = '\n'.join(msg)
-        await ctx.send(
-            f"Strikes applied successfully.\n{results}\n"
-            f"Remember that reaching {max_strikes} will result in a ban!"
+        e = discord.Embed(
+            colour = self.bot.config.embed_colour,
+            title = 'Strikes applied successfully',
+            description = ('The results can be seen below.\n'
+                          f'{Leaderboard(strikes)!r}')
         )
+
+        e.set_footer(text=(f'Reaching {max_strikes} strikes will result in a ban!\n'
+                           f'Aika v{self.bot.version}'))
+        await ctx.send(embed=e)
 
     @commands.command()
     @commands.guild_only()
     @commands.has_guild_permissions(mute_members=True)
     async def mute(self, ctx: ContextWrap) -> None:
         if not self.bot.guild_cache[ctx.guild.id]['moderation']:
-            return await ctx.send('Moderation must be enabled with `!moderation on`!')
+            return await ctx.send(
+                'To use moderation, please first run `!moderation on`.')
 
         # Filter mentions out of the message to isolate duration.
         msg = ctx.message.content.split(maxsplit=1)
         if len(msg) < 2:
-            return await ctx.send('Invalid syntax: `!mute <duration> <@mention ...>`.')
+            return await ctx.send(
+                'Invalid syntax: `!mute <duration> <@mentions ...>`.')
 
         regexes = constants.regexes
 

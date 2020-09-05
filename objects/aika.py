@@ -2,7 +2,6 @@
 
 import asyncio
 from collections import defaultdict
-from multiprocessing.connection import Client
 from typing import Union, Optional, Dict, Any
 import cmyui
 import discord
@@ -14,7 +13,6 @@ from datetime import (datetime as dt,
 import traceback
 import time
 import orjson
-from pandas.core.common import any_none
 
 from constants import Ansi
 from mysql.connector import errorcode, Error as SQLError
@@ -30,10 +28,11 @@ class Leaderboard:
     """A simple class to create simple readable key: value pair
     leaderboards which can be pretty-printed for output in Discord.
     """
-    __slots__ = ('data',)
+    __slots__ = ('data', 'max_keylen')
 
-    def __init__(self) -> None:
-        self.data = {}
+    def __init__(self, data = {}, max_keylen: int = 0) -> None:
+        self.data = data
+        self.max_keylen = max_keylen
 
     def update(self, d) -> None:
         self.data.update(d)
@@ -43,15 +42,31 @@ class Leaderboard:
         # Only needs to work for 1-2, so optimized.
         idx_maxlen = 2 if len(self.data) > 9 else 1
 
-        # Maximum length of a key
-        key_maxlen = min(14, max(len(k) for k in self.data.keys()))
+        # Maximum length of a key.
+        if self.max_keylen:
+            # Make sure the length does not exceed `self.max_keylen` chars
+            keylen = min(self.max_keylen, max(len(k) for k in self.data))
+        else:
+            # Keys can be of any length.
+            keylen = max(len(k) for k in self.data)
 
-        return '```markdown\n{}```'.format(
-            '\n'.join('{idx:0>{idx_maxlen}}. {key:^{key_maxlen}} - {value}'.format(
-                idx = idx + 1, key = asciify(truncate(d[0], 12)), value = d[1],
-                key_maxlen = key_maxlen, idx_maxlen = idx_maxlen
-            ) for idx, d in enumerate(self.data.items()))
-        )
+        # Generate the lines of our leaderboard.
+        lines = []
+
+        for idx, (k, v) in enumerate(self.data.items()):
+            # Truncate key if max length is specified.
+            if keylen:
+                k = truncate(k, keylen)
+
+            lines.append(
+                '{i:0>{ilen}}. {k:^{klen}} - {v}'.format(
+                i = idx + 1, k = asciify(k), v = v,
+                ilen = idx_maxlen, klen = keylen
+            ))
+
+        # Put the leaderboard all together,
+        # and display it with markdown syntax.
+        return '```md\n{}```'.format('\n'.join(lines))
 
 # Light wrapper around commands.Context to allow for one of Aika's
 # special features: the ability to edit previous messages to edit

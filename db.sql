@@ -15,7 +15,7 @@ create table aika_guilds
 	guildid bigint(20) not null
 		primary key,
 	cmd_prefix varchar(8) default '!' not null,
-	max_strikes smallint(6) default 0 not null,
+	max_strikes smallint(6) default 3 not null,
 	moderation tinyint(1) default 0 not null,
 	constraint aika_guilds_guildid_uindex
 		unique (guildid)

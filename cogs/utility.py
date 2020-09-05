@@ -30,10 +30,8 @@ class Utility(commands.Cog):
     @commands.has_permissions(manage_messages = True)
     async def prune(self, ctx: ContextWrap, *, count) -> None:
         if not count.isdecimal() or (count := int(count)) > 1000:
-            return await ctx.send('\n'.join((
-                'Invalid syntax.',
-                '**Correct syntax**: `!prune <count (max 1000)>`.'
-            )))
+            return await ctx.send(
+                'Invalid syntax: `!prune <count (max 1k)>`.')
 
         try: # TODO safely (i.e. not trycatch)
             await ctx.message.delete()

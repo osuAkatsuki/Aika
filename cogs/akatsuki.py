@@ -132,10 +132,8 @@ class Akatsuki(commands.Cog):
         if '-gm' in msg: # -gm <int>
             if len(msg) < (index := msg.index('-gm')) + 1 \
             or not msg[index + 1].isdecimal():
-                return await ctx.send('\n'.join((
-                    'Invalid syntax!',
-                    '> Correct syntax: `!top <-rx, -gm 1> <username/@mention>`.'
-                )))
+                return await ctx.send(
+                    'Invalid syntax: `!top <-rx> <-gm #> <username/@mentions ...>`.')
 
             msg.remove('-gm')
             if (gm := int(msg.pop(index))) not in range(2):
@@ -326,8 +324,7 @@ class Akatsuki(commands.Cog):
             if len(msg) < (index := msg.index('-gm')) + 1 \
             or not msg[index + 1].isdecimal():
                 return await ctx.send('\n'.join((
-                    'Invalid syntax!',
-                    '> Correct syntax: `!top <-rx, -gm 1> <username/@mention>`.'
+                    'Invalid syntax: `!top <-rx> <-gm #> <username/@mentions ...>`.'
                 )))
 
             msg.remove('-gm')
@@ -665,7 +662,7 @@ class Akatsuki(commands.Cog):
                 return await ctx.send(
                     'No FAQ callbacks could be fetched from MySQL.')
 
-            lb = Leaderboard()
+            lb = Leaderboard(max_keylen = 14)
 
             for row in res:
                 lb.update({row['title']: row['value']})
@@ -717,8 +714,7 @@ class Akatsuki(commands.Cog):
         # format: topic|title|content
         if len(split := new_faq.split('|')) != 3:
             return await ctx.send('\n'.join((
-                'Invalid syntax.',
-                '> Correct syntax: `topic|title|content`'
+                'Invalid syntax: `!addfaq <topic|title|content>`.'
             )))
 
         split = [s.strip() for s in split]

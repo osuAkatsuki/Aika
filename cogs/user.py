@@ -221,10 +221,7 @@ class User(commands.Cog):
     @commands.guild_only()
     async def levelreq(self, ctx: ContextWrap, *, _lv) -> None:
         if not (level := try_parse_float(_lv)):
-            return await ctx.send('\n'.join((
-                'Invalid syntax.',
-                '> Correct syntax: `!lvreq <level>`.'
-            )))
+            return await ctx.send('Invalid syntax: `!lvreq <level>`.')
 
         total_xp = await self.calculate_xp(level)
         current_xp = await self.get_xp(ctx.author.id, ctx.guild.id)
@@ -276,7 +273,7 @@ class User(commands.Cog):
         if not res:
             return await self.leaderboard(ctx)
 
-        lb = Leaderboard()
+        lb = Leaderboard(max_keylen = 14)
 
         for row in res:
             name = u.name if (u := self.bot.get_user(row['id'])) else '<left guild>'
