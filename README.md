@@ -21,24 +21,31 @@ no parameters will simply retrieve your own.
 (assuming your akatsuki account is linked)
 
 # General commands
-!<u/user/profile> (@mention) # display your (or target's) user profile.
+!<u/user/profile> <mentions ...> # display your (or target's) user profile
 !<levelreq/lvreq> <level> # show the xp required for a specific level
-!<lb/xplb/leaderboard> # show the current guild's xp leaderboards.
+!<lb/xplb/leaderboard> # show the current guild's xp leaderboards
 !<lv/level> # may be removed since !u exists
 !<uptime> # shows Aika's time online
 !<prune> <count [max 1000]> # prune messages from a channel (up to 1k)
 
+# Guild commands
+!<setprefix> <prefix> # set Aika's prefix within the guild
+!<moderation> <on/off> # toggle moderation commands within the guild
+
+# Moderation commands (must be enabled with `!moderation on`)
+!<strike/warn> <mentions ...> # add a strike to user(s)
+!<mute> <duration><period> <mentions ...> # mute a specified user for a given time
+
 # Akatsuki commands
-!<top> (-rx) (-gm 0/1) (@mention/akatsuki username) # shows your (or target's) best 3 plays on akatsuki
-!<rc/recent> (@mention/akatsuki username) # shows your (or target's) most recent score on akatsuki
+!<top> <-gm #> <-rx> <username/mentions ...> # shows your (or target's) best 3 plays on akatsuki
+!<rc/recent> <-gm #> <-rx> <username/mentions ...> # shows your (or target's) most recent score on akatsuki
 !<link/linkosu> # allows you to link your akatsuki account to discord
 
-# Akatsuki-only commands (only available in akatsuki's discord)
-!<faq> (name/id) # get FAQ topics
+# Akatsuki-only commands (only available in Akatsuki's discord)
+!<faq> <topics ...> # get akatsuki-related help (freq. asked questions)
 ```
 
 Requirements
 ------------
 
-- Python >= 3.8
-- MySQL
+- python3.8 & mysql

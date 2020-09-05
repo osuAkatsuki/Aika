@@ -117,7 +117,7 @@ class Aika(commands.Bot):
         self.resp_cache = defaultdict(lambda: None)
         self.guild_cache: Optional[Dict[int, Any]] = None
 
-        self.version = cmyui.Version(1, 1, 2)
+        self.version = cmyui.Version(1, 1, 3)
 
     def when_mentioned_or_prefix(self):
         def inner(bot, msg):
@@ -194,7 +194,8 @@ class Aika(commands.Bot):
         if filtered:
             return await msg.delete()
 
-        if self.config.server_build or msg.author.id == self.owner_id:
+        if self.config.server_build \
+        or await self.bot.is_owner(msg.author):
             await self.process_commands(msg)
 
     async def on_message_edit(self, before: discord.Message,
@@ -214,7 +215,8 @@ class Aika(commands.Bot):
         if filtered:
             return await after.delete()
 
-        if self.config.server_build or after.author.id == self.owner_id:
+        if self.config.server_build \
+        or await self.bot.is_owner(after.author):
             await self.process_commands(after)
 
     async def on_message_delete(self, msg: discord.Message) -> None:

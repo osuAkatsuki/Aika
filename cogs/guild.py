@@ -34,33 +34,21 @@ class Guild(commands.Cog):
 
         return await ctx.send('Successfully updated prefix!')
 
-    @commands.command()
-    @commands.guild_only()
-    @commands.has_guild_permissions(manage_guild=True)
-    async def moderation(self, ctx: ContextWrap) -> None:
-        split = ctx.message.content.split(maxsplit=1)
-        if len(split) < 2 or (new := split[1]) not in ('on', 'off'):
-            return await ctx.send(
-                'Invalid syntax: `!moderation <on/off>`.')
-
-        new_str = 'Enabled' if (new := new == 'on') else 'Disabled'
-
-        if self.bot.guild_cache[ctx.guild.id]['moderation'] == new:
-            return await ctx.send(f'Moderation is already {new_str}, silly!')
-
+    async def set_moderation(self, guild: discord.Guild,
+                             new: bool) -> None:
         if new:
             # We are enabling moderation! Ensure all is ready.
 
             # Create the muted role if it doesn't already exist.
-            if not discord.utils.get(ctx.guild.roles, name='muted'):
-                role = await ctx.guild.create_role(
+            if not discord.utils.get(guild.roles, name='muted'):
+                role = await guild.create_role(
                     name = 'muted',
                     color = discord.Colour(0xE73C82), # pinkish
                     reason = 'Aika moderation enabled.'
                 )
 
                 # Set it's permissions in each text channel.
-                for chan in ctx.guild.text_channels:
+                for chan in guild.text_channels:
                     await chan.set_permissions(role, send_messages = False)
 
                 # TODO: perhaps mute people in voice channels as well?
@@ -69,22 +57,62 @@ class Guild(commands.Cog):
             # We are disabling moderation! Remove everything.
 
             # Remove the muted role if it exists.
-            if r := discord.utils.get(ctx.guild.roles, name='muted'):
+            if r := discord.utils.get(guild.roles, name='muted'):
                 await r.delete(reason='Aika moderation disabled.')
 
         # Update in SQL.
         await self.bot.db.execute(
             'UPDATE aika_guilds SET moderation = %s '
             'WHERE guildid = %s',
-            [new, ctx.guild.id]
+            [new, guild.id]
         )
 
         # Update in cache.
-        self.bot.guild_cache[ctx.guild.id]['moderation'] = new
-
-        await ctx.send(f"{new_str} moderation.")
+        self.bot.guild_cache[guild.id]['moderation'] = new
 
     @commands.command()
+    @commands.guild_only()
+    @commands.has_guild_permissions(manage_guild=True)
+    async def moderation(self, ctx: ContextWrap) -> None:
+        split = ctx.message.content.split(maxsplit=1)
+        if len(split) < 2 or split[1] not in ('on', 'off'):
+            return await ctx.send(
+                'Invalid syntax: `!moderation <on/off>`.')
+
+        new = split[1] == 'on'
+        new_str = 'Enabled' if new else 'Disabled'
+
+        # check if this is already the guild's setting
+        if self.bot.guild_cache[ctx.guild.id]['moderation'] == new:
+            return 'No changes were made.'
+
+        await self.set_moderation(ctx.guild, new)
+        return await ctx.send(f'Moderation {new_str}.')
+
+
+    ##################
+    ### Moderation ###
+    ##################
+
+    @commands.Cog.listener()
+    @commands.guild_only()
+    async def on_guild_role_delete(self, role: discord.Role) -> None:
+        await self.bot.wait_until_ready()
+
+        guild_opts = self.bot.guild_cache[role.guild.id]
+
+        if guild_opts['moderation'] and role.name == 'muted':
+            # they have deleted the muted role, turn moderation
+            # off since we can no longer mute people safely.
+            await self.set_moderation(role.guild, False)
+
+            # TODO: get the general channel of the guild somehow?
+            # i want to send a warning to the person who removed
+            # the role that we've disabled moderation, and that
+            # they can re-enable it if it was a mistake.. :/
+            # doing by dm can work but some people will block them
+
+    @commands.command(aliases=['warn'])
     @commands.guild_only()
     @commands.has_guild_permissions(ban_members=True)
     async def strike(self, ctx: ContextWrap) -> None:
@@ -155,8 +183,10 @@ class Guild(commands.Cog):
                           f'{Leaderboard(strikes)!r}')
         )
 
-        e.set_footer(text=(f'Reaching {max_strikes} strikes will result in a ban!\n'
-                           f'Aika v{self.bot.version}'))
+        e.set_footer(text = (
+            f'Reaching {max_strikes} strikes will result in a ban!\n'
+            f'Aika v{self.bot.version}'
+        ))
         await ctx.send(embed=e)
 
     @commands.command()

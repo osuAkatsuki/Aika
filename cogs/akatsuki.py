@@ -54,6 +54,7 @@ class Akatsuki(commands.Cog):
     @commands.guild_only()
     async def on_message(self, msg: discord.Message) -> None:
         await self.bot.wait_until_ready()
+
         if not msg.content or msg.author.bot:
             return
 
@@ -62,23 +63,25 @@ class Akatsuki(commands.Cog):
 
         channels = self.bot.config.akatsuki['channels']
 
-        if msg.channel.id == channels['verify']:
-            role = msg.guild.get_role(self.bot.config.akatsuki['roles']['member'])
+        if msg.channel.id == channels['verify'] \
+        and not await self.bot.is_owner(msg.author):
+            # sooo shit should be command
+            if msg.content[1:] == 'verify':
+                members = discord.utils.get(msg.guild.roles, name='Members')
+                await msg.author.add_roles(members)
 
-            if role not in msg.author.roles and msg.content == '!verify':
-                await msg.author.add_roles(role)
+                general_chan, faq_chan, help_chan = [
+                    discord.utils.get(msg.guild.text_channels, name = m)
+                    for m in ('general', 'faq', 'help')
+                ]
 
-                general = msg.guild.get_channel(channels['general'])
-
-                faq_id = channels['faq']
-                help_id = channels['help']
-
-                await general.send('\n'.join((
+                await general_chan.send('\n'.join((
                     f'Welcome {msg.author.mention} to Akatsuki!',
-                    f'If you need help, check out <#{faq_id}>, or ask in <#{help_id}>.'
+                    f'If you need help, check out {faq_chan.mention}, or ask in {help_chan.mention}.'
                 )))
 
             await msg.delete()
+
         elif msg.channel.id == channels['user_report']:
             if msg.role_mentions:
                 try:
@@ -169,7 +172,7 @@ class Akatsuki(commands.Cog):
 
         # only allow bot owner to fetch restricted users
         if not all(u['priv'] & 1 for u in users) \
-        and not ctx.author.id == self.bot.owner_id:
+        and not await self.bot.is_owner(ctx.author):
             return await ctx.send('You have insufficient privileges.')
 
         if len(users) > 3:
@@ -368,7 +371,7 @@ class Akatsuki(commands.Cog):
 
         # only allow bot owner to fetch restricted users
         if not all(u['priv'] & 1 for u in users) \
-        and not ctx.author.id == self.bot.owner_id:
+        and not await self.bot.is_owner(ctx.author):
             return await ctx.send(
                 "You have insufficient privileges.")
 
