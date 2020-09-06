@@ -17,7 +17,7 @@ class Utility(commands.Cog):
         uptime = seconds_readable(int(time() - self.bot.uptime))
         await ctx.send(f"I've been running for **{uptime}**.")
 
-    @commands.command(hidden = True)
+    @commands.command(hidden=True)
     @commands.is_owner()
     async def shutdown(self, ctx: ContextWrap) -> None:
         await ctx.send('Night night..')
@@ -25,9 +25,9 @@ class Utility(commands.Cog):
 
     # TODO: prune_user() or combine logic for a specific user wipe into prune()
 
-    @commands.command(hidden = True)
+    @commands.command(hidden=True)
     @commands.guild_only()
-    @commands.has_permissions(manage_messages = True)
+    @commands.has_permissions(manage_messages=True)
     async def prune(self, ctx: ContextWrap, *, count) -> None:
         if not count.isdecimal() or (count := int(count)) > 1000:
             return await ctx.send(
@@ -38,7 +38,7 @@ class Utility(commands.Cog):
         except discord.Forbidden:
             pass
 
-        await ctx.channel.purge(limit = count)
+        await ctx.channel.purge(limit=count)
 
 def setup(bot: commands.Bot):
     bot.add_cog(Utility(bot))

@@ -125,7 +125,7 @@ class Akatsuki(commands.Cog):
             [username]
         )
 
-    @commands.command(aliases = ['t'])
+    @commands.command(aliases=['t'])
     @commands.guild_only()
     async def top(self, ctx: ContextWrap) -> None:
         msg = ctx.message.content.split(' ')[1:]
@@ -322,7 +322,7 @@ class Akatsuki(commands.Cog):
             e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
             await ctx.send(embed = e)
 
-    @commands.command(aliases = ['rc', 'rs', 'r'])
+    @commands.command(aliases=['rc', 'rs', 'r'])
     @commands.guild_only()
     async def recent(self, ctx: ContextWrap) -> None:
         msg = ctx.message.content.split(' ')[1:]
@@ -522,7 +522,7 @@ class Akatsuki(commands.Cog):
             e.set_image(url = f"https://assets.ppy.sh/beatmaps/{res['bsid']}/covers/cover.jpg")
             await ctx.send(embed = e)
 
-    @commands.command(aliases = ['linkosu'])
+    @commands.command(aliases=['linkosu'])
     @commands.guild_only()
     async def link(self, ctx: ContextWrap) -> None:
         if user := await self.get_osu(ctx.author.id):
@@ -557,7 +557,7 @@ class Akatsuki(commands.Cog):
 
         # Other bit of the process is done on osu! by the user.
 
-    @commands.command(hidden = True)
+    @commands.command(hidden=True)
     @commands.guild_only()
     @commands.check(akatsuki_only)
     async def next_roleupdate(self, ctx: ContextWrap) -> None:
@@ -615,7 +615,7 @@ class Akatsuki(commands.Cog):
     @commands.command()
     @commands.guild_only()
     @commands.check(akatsuki_only)
-    @commands.has_permissions(manage_messages = True)
+    @commands.has_permissions(manage_messages=True)
     async def reporting_embed(self, ctx: ContextWrap) -> None:
         e = discord.Embed(
             colour = self.bot.config.embed_colour,
@@ -716,7 +716,7 @@ class Akatsuki(commands.Cog):
                 description = faq['content']
             ))
 
-    @commands.command(aliases = ['newfaq'], hidden = True)
+    @commands.command(aliases=['newfaq'], hidden=True)
     @commands.guild_only()
     @commands.check(akatsuki_only)
     @commands.has_guild_permissions(ban_members = True) # somewhat arbitrary..

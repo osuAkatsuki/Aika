@@ -30,7 +30,7 @@ class Guild(commands.Cog):
         )
 
         # Update in cache.
-        self.bot.guild_cache[ctx.guild.id]['cmd_prefix'] = prefix
+        self.bot.cache['guilds'][ctx.guild.id]['cmd_prefix'] = prefix
 
         return await ctx.send('Successfully updated prefix!')
 
@@ -68,7 +68,7 @@ class Guild(commands.Cog):
         )
 
         # Update in cache.
-        self.bot.guild_cache[guild.id]['moderation'] = new
+        self.bot.cache['guilds'][guild.id]['moderation'] = new
 
     @commands.command()
     @commands.guild_only()
@@ -83,7 +83,7 @@ class Guild(commands.Cog):
         new_str = 'Enabled' if new else 'Disabled'
 
         # check if this is already the guild's setting
-        if self.bot.guild_cache[ctx.guild.id]['moderation'] == new:
+        if self.bot.cache['guilds'][ctx.guild.id]['moderation'] == new:
             return 'No changes were made.'
 
         await self.set_moderation(ctx.guild, new)
@@ -99,7 +99,7 @@ class Guild(commands.Cog):
     async def on_guild_role_delete(self, role: discord.Role) -> None:
         await self.bot.wait_until_ready()
 
-        guild_opts = self.bot.guild_cache[role.guild.id]
+        guild_opts = self.bot.cache['guilds'][role.guild.id]
 
         if guild_opts['moderation'] and role.name == 'muted':
             # they have deleted the muted role, turn moderation
@@ -116,7 +116,7 @@ class Guild(commands.Cog):
     @commands.guild_only()
     @commands.has_guild_permissions(ban_members=True)
     async def strike(self, ctx: ContextWrap) -> None:
-        guild_opts = self.bot.guild_cache[ctx.guild.id]
+        guild_opts = self.bot.cache['guilds'][ctx.guild.id]
 
         if not guild_opts['moderation']:
             return await ctx.send(
@@ -193,7 +193,7 @@ class Guild(commands.Cog):
     @commands.guild_only()
     @commands.has_guild_permissions(mute_members=True)
     async def mute(self, ctx: ContextWrap) -> None:
-        if not self.bot.guild_cache[ctx.guild.id]['moderation']:
+        if not self.bot.cache['guilds'][ctx.guild.id]['moderation']:
             return await ctx.send(
                 'To use moderation, please first run `!moderation on`.')
 

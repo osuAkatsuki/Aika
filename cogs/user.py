@@ -13,7 +13,6 @@ from objects.aika import Leaderboard, ContextWrap, Aika
 class User(commands.Cog):
     def __init__(self, bot: Aika):
         self.bot = bot
-        self.chatxp_cache = {}
         self.voice_xp.start()
 
     def cog_unload(self):
@@ -56,8 +55,8 @@ class User(commands.Cog):
     async def blocked_until(self, discordID: int,
                             guildID: int) -> Union[int, bool]:
         # Check if they're in the cache.
-        if (discordID, guildID) in self.chatxp_cache:
-            return self.chatxp_cache[(discordID, guildID)]
+        if (discordID, guildID) in self.bot.cache['chatxp']:
+            return self.bot.cache['chatxp'][(discordID, guildID)]
 
         # Get from the db.
         ret = await self.bot.db.fetch(
@@ -77,7 +76,7 @@ class User(commands.Cog):
                               seconds: int = 60) -> None:
         # Update the cache
         t = int(time.time() + seconds)
-        self.chatxp_cache[(discordID, guildID)] = t
+        self.bot.cache['chatxp'][(discordID, guildID)] = t
 
         # Update the db.
         await self.bot.db.execute(
@@ -156,7 +155,7 @@ class User(commands.Cog):
 
         await self.increment_xp(after.author.id, after.guild.id)
 
-    @commands.command(aliases = ['profile', 'u'])
+    @commands.command(aliases=['profile', 'u'])
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
     async def user(self, ctx: ContextWrap) -> None:
@@ -216,7 +215,7 @@ class User(commands.Cog):
         e.set_thumbnail(url = target.avatar_url)
         await ctx.send(embed = e) # TODO: cmyui.codes/u/ profiles?
 
-    @commands.command(aliases = ['lvreq'])
+    @commands.command(aliases=['lvreq'])
     @commands.cooldown(3, 5, commands.BucketType.user)
     @commands.guild_only()
     async def levelreq(self, ctx: ContextWrap, *, _lv) -> None:
@@ -233,7 +232,7 @@ class User(commands.Cog):
 
     # TODO: re-create global leaderboard for all servers
 
-    @commands.command(aliases = ['aika', 'help'])
+    @commands.command(aliases=['aika', 'help'])
     async def botinfo(self, ctx: ContextWrap) -> None:
         e = discord.Embed(colour = self.bot.config.embed_colour)
 
@@ -259,7 +258,7 @@ class User(commands.Cog):
         e.set_footer(text = f'Aika v{self.bot.version}')
         await ctx.send(embed = e)
 
-    @commands.command(aliases = ['lvtop', 'xptop', 'xplb', 'lb', 'xpleaderboard'])
+    @commands.command(aliases=['lvtop', 'xptop', 'xplb', 'lb', 'xpleaderboard'])
     @commands.guild_only()
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def leaderboard(self, ctx: ContextWrap) -> None:
@@ -271,6 +270,8 @@ class User(commands.Cog):
         )
 
         if not res:
+            # since they sent a message, they should
+            # now have xp, so reinvoke the command.
             return await self.leaderboard(ctx)
 
         lb = Leaderboard(max_keylen = 14)

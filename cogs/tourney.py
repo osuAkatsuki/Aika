@@ -11,7 +11,7 @@ class Tourney(commands.Cog):
         self.t_roles = self.bot.config.akatsuki['roles']['tourney']
         self.ev_manager = self.t_roles.pop('manager')
 
-    @commands.command(aliases = ['ev'])
+    @commands.command(aliases=['ev'])
     @commands.guild_only()
     @commands.check(akatsuki_only)
     async def event(self, ctx: ContextWrap) -> None:

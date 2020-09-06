@@ -83,7 +83,7 @@ class ContextWrap(commands.Context):
         kwargs['embed'] = kwargs.pop('embed', None)
         kwargs['content'] = kwargs.pop('content', None)
 
-        cached = self.bot.resp_cache[self.message.id]
+        cached = self.bot.cache['responses'][self.message.id]
 
         if cached and (time.time() - cached['timeout']) <= 0:
             # We have cache and it's not expired.
@@ -92,7 +92,7 @@ class ContextWrap(commands.Context):
         else: # We either have no cached val, or it's expired.
             msg = await super().send(**kwargs)
 
-            self.bot.resp_cache[self.message.id] = {
+            self.bot.cache['responses'][self.message.id] = {
                 'resp': msg,
                 'timeout': int(time.time()) + 300 # 5 min
             }
@@ -100,9 +100,7 @@ class ContextWrap(commands.Context):
         return msg
 
 class Aika(commands.Bot):
-    __slots__ = ('db', 'http',
-                 'resp_cache', 'guild_cache',
-                 'version')
+    __slots__ = ('db', 'http', 'cache', 'version')
 
     def __init__(self) -> None:
         super().__init__(
@@ -114,14 +112,23 @@ class Aika(commands.Bot):
         self.db: Optional[cmyui.AsyncSQLPool] = None
         self.http_sess: Optional[aiohttp.ClientSession] = None
 
-        self.resp_cache = defaultdict(lambda: None)
-        self.guild_cache: Optional[Dict[int, Any]] = None
+        # Various types of cache
+        # for different applications.
+        self.cache = {
+            # whenever aika replies to a command, cache
+            # {msgid: {'timeout': sent+5min, 'msg': resp}}
+            'responses': defaultdict(lambda: None),
+            # keep all data from aika_guilds cached from startup
+            'guilds': {}, # {guildid: {guild_info ...}, ...}
+            # keep all chatxp wait times in cache.
+            'chatxp': {} # {(discordid, guildid): timeout, ...}
+        }
 
-        self.version = cmyui.Version(1, 1, 3)
+        self.version = cmyui.Version(1, 1, 4)
 
     def when_mentioned_or_prefix(self):
         def inner(bot, msg):
-            prefix = self.guild_cache[msg.guild.id]['cmd_prefix']
+            prefix = self.cache['guilds'][msg.guild.id]['cmd_prefix']
             return commands.when_mentioned_or(prefix)(bot, msg)
 
         return inner
@@ -158,9 +165,15 @@ class Aika(commands.Bot):
             [guild.id]
         )
 
+        res = await self.db.fetch(
+            'SELECT * FROM aika_guilds '
+            'WHERE guildid = %s',
+            [guild.id]
+        )
+
         # Add to cache.
-        self.guild_cache[guild.id] = {
-            'cmd_prefix': '!'
+        self.cache['guilds'][guild.id] = {
+            k: res[k] for k in set(res) - {'guildid'}
         }
 
     async def on_guild_remove(self, guild: discord.Guild) -> None:
@@ -175,7 +188,7 @@ class Aika(commands.Bot):
         )
 
         # Remove from cache.
-        del self.guild_cache[guild.id]
+        del self.cache['guilds'][guild.id]
 
     async def on_message(self, msg: discord.Message) -> None:
         await self.wait_until_ready()
@@ -195,7 +208,7 @@ class Aika(commands.Bot):
             return await msg.delete()
 
         if self.config.server_build \
-        or await self.bot.is_owner(msg.author):
+        or await self.is_owner(msg.author):
             await self.process_commands(msg)
 
     async def on_message_edit(self, before: discord.Message,
@@ -216,13 +229,13 @@ class Aika(commands.Bot):
             return await after.delete()
 
         if self.config.server_build \
-        or await self.bot.is_owner(after.author):
+        or await self.is_owner(after.author):
             await self.process_commands(after)
 
     async def on_message_delete(self, msg: discord.Message) -> None:
         # Whenever a message is deleted, check if it was in
         # our cache, and delete it (so they don't accumulate).
-        cached = self.resp_cache[msg.id]
+        cached = self.cache['responses'][msg.id]
 
         if cached:
             try:
@@ -230,7 +243,7 @@ class Aika(commands.Bot):
             except discord.NotFound: # No 403 since it's our own message.
                 pass # Response has already been deleted.
 
-            del self.resp_cache[msg.id]
+            del self.cache['responses'][msg.id]
 
     async def on_member_ban(self, guild: discord.Guild,
                             user: Union[discord.Member, discord.User]) -> None:
@@ -391,12 +404,14 @@ class Aika(commands.Bot):
             # get our db connection & http client
             await self.connect_db()
 
-            self.http_sess = aiohttp.ClientSession(json_serialize=orjson.dumps)
+            self.http_sess = aiohttp.ClientSession(
+                json_serialize = orjson.dumps # use for speed
+            )
 
             # load guild settings into cache
             res = await self.db.fetchall('SELECT * FROM aika_guilds')
 
-            self.guild_cache = {
+            self.cache['guilds'] = {
                 row['guildid']: {k: row[k] for k in set(row) - {'guildid'}}
                 for row in res
             }
