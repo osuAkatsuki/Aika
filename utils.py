@@ -3,7 +3,6 @@
 # This is basically a disaster file of all the utilities i always
 # end up dragging around with me.. and some even more wild ones
 from typing import List, Optional
-from enum import IntEnum
 from discord.ext import commands
 from shutil import copyfile
 from requests import get as req_get

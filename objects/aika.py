@@ -2,7 +2,7 @@
 
 import asyncio
 from collections import defaultdict
-from typing import Union, Optional, Dict, Any
+from typing import Union, Optional
 import cmyui
 import discord
 import aiohttp
@@ -100,7 +100,7 @@ class ContextWrap(commands.Context):
         return msg
 
 class Aika(commands.Bot):
-    __slots__ = ('db', 'http', 'cache', 'version')
+    __slots__ = ('db', 'http', 'cache', 'version', 'uptime')
 
     def __init__(self) -> None:
         super().__init__(
@@ -124,7 +124,8 @@ class Aika(commands.Bot):
             'chatxp': {} # {(discordid, guildid): timeout, ...}
         }
 
-        self.version = cmyui.Version(1, 1, 4)
+        self.version = cmyui.Version(1, 1, 5)
+        self.uptime: Optional[int] = None
 
     def when_mentioned_or_prefix(self):
         def inner(bot, msg):
@@ -158,20 +159,23 @@ class Aika(commands.Bot):
     async def on_guild_join(self, guild: discord.Guild) -> None:
         await self.wait_until_ready()
 
-        # Insert into database.
+        # insert new guild into sql.
         await self.db.execute(
             'INSERT INTO aika_servers '
             '(guildid) VALUES (%s)',
             [guild.id]
         )
 
+        # add it to the cache.
+        # XXX: i'm fetching from sql simply because
+        # i don't care to update this every time i
+        # add something to the table for 1ms gain..
         res = await self.db.fetch(
             'SELECT * FROM aika_guilds '
             'WHERE guildid = %s',
             [guild.id]
         )
 
-        # Add to cache.
         self.cache['guilds'][guild.id] = {
             k: res[k] for k in set(res) - {'guildid'}
         }
@@ -249,13 +253,7 @@ class Aika(commands.Bot):
                             user: Union[discord.Member, discord.User]) -> None:
         printc(f'{user} was banned from {guild}.', Ansi.GREEN)
 
-    async def on_ready(self) -> None:
-        # TODO: maybe use datetime module rather than this w/ formatting?
-        if not hasattr(self, 'uptime'):
-            self.uptime = time.time()
-
-        """ load all pending mutes from sql into tasks """
-
+    async def enqueue_mutes(self) -> None:
         res = await self.db.fetchall(
             'SELECT discordid, guildid, muted_until '
             'FROM aika_users WHERE muted_until != 0'
@@ -288,6 +286,48 @@ class Aika(commands.Bot):
 
             # Enqueue the task to remove their mute when complete.
             self.loop.create_task(self.remove_role_in(m, duration, r))
+
+    async def add_new_guilds(self) -> None:
+        for guild in self.guilds:
+            if guild.id in self.cache['guilds']:
+                continue # we already have this guild
+
+            # Guild not in our cache (or sql).
+
+            # insert the new guild into sql
+            await self.db.execute(
+                'INSERT INTO aika_guilds '
+                '(guildid) VALUES (%s)',
+                [guild.id]
+            )
+
+            # add it to the cache
+            # XXX: i'm fetching from sql simply because
+            # i don't care to update this every time i
+            # add something to the table for 1ms gain..
+            res = await self.db.fetch(
+                'SELECT * FROM aika_guilds '
+                'WHERE guildid = %s',
+                [guild.id]
+            )
+
+            self.cache['guilds'][guild.id] = {
+                k: res[k] for k in set(res) - {'guildid'}
+            }
+
+    async def on_ready(self) -> None:
+        # TODO: maybe use datetime module rather than this w/ formatting?
+        if not self.uptime:
+            self.uptime = time.time()
+
+        # add any guild newly joined while
+        # the bot was offline to sql.
+        await self.add_new_guilds()
+
+        # load all pending mutes
+        # from sql into tasks
+        await self.enqueue_mutes()
+
 
         print('{col}Ready{reset}: {user} ({userid})'.format(
               col = repr(Ansi.GREEN), reset = repr(Ansi.RESET),

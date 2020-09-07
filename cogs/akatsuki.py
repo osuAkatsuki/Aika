@@ -6,7 +6,7 @@
 # i'm witing it for my own use case.
 
 import asyncio
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional, Union
 import discord
 from discord.ext import commands, tasks
 

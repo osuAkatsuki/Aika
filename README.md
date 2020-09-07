@@ -33,8 +33,8 @@ no parameters will simply retrieve your own.
 !mute <duration>(period) <@mentions ...> # mute a specified user for a given time, period is (s/m/h/d/w)
 
 # Akatsuki commands
-!top (-gm #) (-rx) (username/mentions ...) # shows your (or target's) best 3 plays on akatsuki
-!recent (-gm #) (-rx) (username/mentions ...) # shows your (or target's) most recent score on akatsuki
+!top (-gm #) (-rx) (username/mentions ...) # shows your (or @mention's) best 3 plays on akatsuki
+!recent (-gm #) (-rx) (username/mentions ...) # shows your (or @mention's) most recent score on akatsuki
 !link # allows you to link your akatsuki account to discord
 
 # Akatsuki-only commands (only available in Akatsuki's discord)
