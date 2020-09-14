@@ -719,7 +719,7 @@ class Akatsuki(commands.Cog):
 
             await ctx.send(embed=discord.Embed(
                 title = faq['title'],
-                description = faq['content']
+                description = faq['content'].format(**self.bot.config.faq_replacements)
             ))
 
     @commands.command(aliases=['newfaq'], hidden=True)
