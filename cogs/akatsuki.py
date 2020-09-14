@@ -63,6 +63,10 @@ class Akatsuki(commands.Cog):
 
         channels = self.bot.config.akatsuki['channels']
 
+        if not self.bot.config.server_build:
+            # we're done unless we're running on official
+            return
+
         if msg.channel.id == channels['verify'] \
         and not await self.bot.is_owner(msg.author):
             # sooo shit should be command
@@ -112,11 +116,13 @@ class Akatsuki(commands.Cog):
     ############
 
     async def get_osu(self, discordID: int) -> Optional[int]:
-        return await self.bot.db.fetch(
+        res = await self.bot.db.fetch(
             'SELECT a.osu_id id, u.username name, u.privileges priv '
             'FROM aika_akatsuki a LEFT JOIN users u ON u.id = a.osu_id '
             'WHERE a.discordid = %s', [discordID]
         )
+
+        return res if res and res['id'] else None
 
     async def get_osu_from_name(self, username: str) -> Optional[int]:
         return await self.bot.db.fetch(
@@ -550,10 +556,10 @@ class Akatsuki(commands.Cog):
             [ctx.author.id]
         )
 
-        try: # TODO safely (i.e. not trycatch)
-            await ctx.message.delete()
-        except discord.Forbidden:
-            pass
+        await ctx.send(
+            'Linking process initiated, please check '
+            'your DMs with me for further instruction!'
+        )
 
         # Other bit of the process is done on osu! by the user.
 
@@ -691,7 +697,7 @@ class Akatsuki(commands.Cog):
     @commands.guild_only()
     @commands.check(akatsuki_only)
     async def faq(self, ctx: ContextWrap) -> None:
-        split = ctx.message.content.split()
+        split = ctx.message.content.split(' ')
         topic = None
 
         if len(split) != 2 or len(split[1]) > 32 or split[1] not in self._faq:

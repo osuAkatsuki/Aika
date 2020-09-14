@@ -328,7 +328,6 @@ class Aika(commands.Bot):
         # from sql into tasks
         await self.enqueue_mutes()
 
-
         print('{col}Ready{reset}: {user} ({userid})'.format(
               col = repr(Ansi.GREEN), reset = repr(Ansi.RESET),
               user = self.user, userid = self.user.id))
@@ -408,7 +407,7 @@ class Aika(commands.Bot):
             return False # filters disabled
 
         return (any(f in msg for f in self.config.substring_filters) or
-                any(s in self.config.filters for s in msg.split()))
+                any(s in self.config.filters for s in msg.split(' ')))
 
     async def print_console(self, msg: discord.Message, col: Ansi) -> None:
         if not (res := await self.db.fetch(
@@ -437,7 +436,8 @@ class Aika(commands.Bot):
 
         await self.change_presence(
             activity = discord.Game(f'Akat: {online}, Servers: {len(self.guilds)}'),
-            status = discord.Status.online)
+            status = discord.Status.online
+        )
 
     def run(self, *args, **kwargs) -> None:
         async def runner():
