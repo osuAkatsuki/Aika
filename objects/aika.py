@@ -30,9 +30,9 @@ class Leaderboard:
     """
     __slots__ = ('data', 'max_keylen')
 
-    def __init__(self, data = {}, max_keylen: int = 0) -> None:
-        self.data = data
-        self.max_keylen = max_keylen
+    def __init__(self, **kwargs) -> None:
+        self.data = kwargs.pop('data', {})
+        self.max_keylen = kwargs.pop('max_keylen', 0)
 
     def update(self, d) -> None:
         self.data.update(d)
