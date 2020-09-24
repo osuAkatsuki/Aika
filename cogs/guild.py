@@ -142,10 +142,20 @@ class Guild(commands.Cog):
 
             if res:
                 # We have this user in the db.
-                if (nstrikes := res[0] + 1) >= max_strikes:
+                nstrikes = res[0] + 1
+
+                if nstrikes >= max_strikes:
+                    # The user has hit the max, ban them
+                    # and reset their strikes in sql.
                     await u.ban(
                         reason = 'Reached strike limit.',
                         delete_message_days = 0
+                    )
+
+                    await self.bot.db.execute(
+                        'UPDATE aika_users SET strikes = 0 '
+                        'WHERE discordid = %s AND guildid = %s',
+                        [u.id, ctx.guild.id]
                     )
 
                 await self.bot.db.execute(
@@ -180,7 +190,7 @@ class Guild(commands.Cog):
             colour = self.bot.config.embed_colour,
             title = 'Strikes applied successfully',
             description = ('The results can be seen below.\n'
-                          f'{Leaderboard(strikes)!r}')
+                          f'{Leaderboard(data=strikes)!r}')
         )
 
         e.set_footer(text = (
