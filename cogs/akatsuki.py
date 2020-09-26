@@ -709,7 +709,7 @@ class Akatsuki(commands.Cog):
                 title = ('Topic not found. ' if topic else '') + 'Available FAQ',
                 description = (
                     'Use `!faq <topic>` with a topic below for more info.\n'
-                    f'{Leaderboard(topics)!r}'
+                    f'{Leaderboard(data=topics)!r}'
                 )
             ))
 
