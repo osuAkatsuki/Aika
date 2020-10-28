@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 import time
 
 from objects.aika import Aika, ContextWrap, Leaderboard
@@ -130,62 +130,43 @@ class Guild(commands.Cog):
         strikes = {}
 
         for u in mentions:
-            # Make sure we have sufficient perms.
+            # make sure we have sufficient perms.
             if u.top_role >= ctx.author.top_role:
                 continue
 
-            res = await self.bot.db.fetch(
-                'SELECT strikes FROM aika_users '
-                'WHERE discordid = %s AND guildid = %s',
-                [u.id, ctx.guild.id], _dict=False
+            await self.bot.db.execute(
+                'INSERT INTO aika_strikes '
+                '(discordid, guildid, reason, time) '
+                'VALUES (%s, %s, %s, NOW())',
+                [u.id, ctx.guild.id],
             )
 
-            if res:
-                # We have this user in the db.
-                nstrikes = res[0] + 1
-
-                if nstrikes >= max_strikes:
-                    # The user has hit the max, ban them
-                    # and reset their strikes in sql.
-                    await u.ban(
-                        reason = 'Reached strike limit.',
-                        delete_message_days = 0
-                    )
-
-                    await self.bot.db.execute(
-                        'UPDATE aika_users SET strikes = 0 '
-                        'WHERE discordid = %s AND guildid = %s',
-                        [u.id, ctx.guild.id]
-                    )
-
-                await self.bot.db.execute(
-                    'UPDATE aika_users SET strikes = strikes + 1 '
-                    'WHERE discordid = %s AND guildid = %s',
-                    [u.id, ctx.guild.id]
-                )
-
-            else:
-                # This is the user's first interaction.
-                # This will probably never really happen?
-                # Why would you get striked without having
-                # claimed xp..? Either way.. here it is.
-                await self.bot.db.execute(
-                    'INSERT INTO aika_users '
-                    '(discordid, guildid, strikes) '
-                    'VALUES (%s, %s, 1)'
-                )
-
-                nstrikes = 1
+            nstrikes = await self.bot.db.fetch(
+                'SELECT COUNT(*) FROM aika_strikes '
+                'WHERE discordid = %s AND guildid = %s',
+                [u.id, ctx.guild.id], _dict=False
+            )[0]
 
             if nstrikes >= max_strikes:
+                # the user has hit the max, and will be banned.
                 strikes.update({u.name: f'{nstrikes} (banned)'})
+
+                await u.ban(
+                    reason = 'Reached strike limit.',
+                    delete_message_days = 0
+                )
+
+                # XXX: remove strikes on ban?
+                # will have to think some more
+                # about how i want this to work.
+
             else:
                 strikes.update({u.name: nstrikes}) # no need to cast really..
 
         if not strikes:
             return await ctx.send('No changes were made.')
 
-        # Construct a response containing the user's new statuses.
+        # construct a response containing the user's new statuses.
         e = discord.Embed(
             colour = self.bot.config.embed_colour,
             title = 'Strikes applied successfully',

@@ -12,32 +12,6 @@ regexes = {
     'duration': re.compile(r'^(?P<duration>[1-9]\d*)(?P<period>s|m|h|d|w)?$')
 }
 
-class Ansi(IntEnum):
-    # Default colours
-    BLACK:   Final[int] = 30
-    RED:     Final[int] = 31
-    GREEN:   Final[int] = 32
-    YELLOW:  Final[int] = 33
-    BLUE:    Final[int] = 34
-    MAGENTA: Final[int] = 35
-    CYAN:    Final[int] = 36
-    WHITE:   Final[int] = 37
-
-    # Light colours
-    GRAY:          Final[int] = 90
-    LIGHT_RED:     Final[int] = 91
-    LIGHT_GREEN:   Final[int] = 92
-    LIGHT_YELLOW:  Final[int] = 93
-    LIGHT_BLUE:    Final[int] = 94
-    LIGHT_MAGENTA: Final[int] = 95
-    LIGHT_CYAN:    Final[int] = 96
-    LIGHT_WHITE:   Final[int] = 97
-
-    RESET: Final[int] = 0
-
-    def __repr__(self) -> str:
-        return f'\x1b[{self.value}m'
-
 class Mods(IntEnum):
     NOMOD:       Final[int] = 0
     NOFAIL:      Final[int] = 1 << 0

@@ -3,20 +3,16 @@
 import asyncio
 from collections import defaultdict
 from typing import Union, Optional
-import cmyui
+from cmyui import AsyncSQLPoolWrapper, log, Ansi, Version
 import discord
 import aiohttp
-from math import sqrt
 from discord.ext import commands, tasks
-from datetime import (datetime as dt,
-                      timezone as tz)
 import traceback
 import time
 import orjson
 
-from constants import Ansi
 from mysql.connector import errorcode, Error as SQLError
-from utils import printc, asciify, truncate
+from utils import asciify, truncate
 
 __all__ = (
     'Leaderboard',
@@ -109,7 +105,7 @@ class Aika(commands.Bot):
             help_command = None
         )
 
-        self.db: Optional[cmyui.AsyncSQLPool] = None
+        self.db: Optional[AsyncSQLPoolWrapper] = None
         self.http_sess: Optional[aiohttp.ClientSession] = None
 
         # Various types of cache
@@ -124,7 +120,7 @@ class Aika(commands.Bot):
             'chatxp': {} # {(discordid, guildid): timeout, ...}
         }
 
-        self.version = cmyui.Version(1, 1, 5)
+        self.version = Version(1, 1, 5)
         self.uptime: Optional[int] = None
 
     def when_mentioned_or_prefix(self):
@@ -140,7 +136,7 @@ class Aika(commands.Bot):
 
     async def connect_db(self) -> None:
         try:
-            self.db = cmyui.AsyncSQLPool()
+            self.db = AsyncSQLPoolWrapper()
             await self.db.connect(**self.config.mysql)
         except SQLError as err:
             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
@@ -161,7 +157,7 @@ class Aika(commands.Bot):
 
         # insert new guild into sql.
         await self.db.execute(
-            'INSERT INTO aika_servers '
+            'INSERT INTO aika_guilds '
             '(guildid) VALUES (%s)',
             [guild.id]
         )
@@ -186,7 +182,7 @@ class Aika(commands.Bot):
         # Delete from database.
         # TODO: maybe don't..? needs more consideration
         await self.db.execute(
-            'DELETE FROM aika_servers '
+            'DELETE FROM aika_guilds '
             'WHERE guildid = %s',
             [guild.id]
         )
@@ -196,44 +192,34 @@ class Aika(commands.Bot):
 
     async def on_message(self, msg: discord.Message) -> None:
         await self.wait_until_ready()
+
         if not msg.content or msg.author.bot:
             return
 
-        filtered = (msg.guild.id == self.config.akatsuki['id'] and
-                    await self.filter_content(msg.content.lower()))
+        # filter messages in akatsuki
+        if msg.guild.id == self.config.akatsuki['id']:
+            if await self.filter_content(msg.content.lower()):
+                return await msg.delete()
 
-        colour = (Ansi.LIGHT_MAGENTA if msg.author.bot else
-                  Ansi.LIGHT_RED if filtered else
-                  Ansi.LIGHT_CYAN)
-
-        await self.print_console(msg, colour)
-
-        if filtered:
-            return await msg.delete()
-
-        if self.config.server_build \
-        or await self.is_owner(msg.author):
+        if self.config.server_build or await self.is_owner(msg.author):
             await self.process_commands(msg)
 
     async def on_message_edit(self, before: discord.Message,
                               after: discord.Message) -> None:
         await self.wait_until_ready()
 
-        if not after.content or after.author.bot \
-        or before.content == after.content:
+        if not after.content or after.author.bot:
             return
 
-        filtered = (after.guild.id == self.config.akatsuki['id'] and
-                    await self.filter_content(after.content.lower()))
+        if after.content == before.content:
+            return
 
-        colour = Ansi.LIGHT_RED if filtered else Ansi.LIGHT_YELLOW
-        await self.print_console(after, colour)
+        # filter messages in akatsuki
+        if after.guild.id == self.config.akatsuki['id']:
+            if await self.filter_content(after.content.lower()):
+                return await after.delete()
 
-        if filtered:
-            return await after.delete()
-
-        if self.config.server_build \
-        or await self.is_owner(after.author):
+        if self.config.server_build or await self.is_owner(after.author):
             await self.process_commands(after)
 
     async def on_message_delete(self, msg: discord.Message) -> None:
@@ -251,7 +237,7 @@ class Aika(commands.Bot):
 
     async def on_member_ban(self, guild: discord.Guild,
                             user: Union[discord.Member, discord.User]) -> None:
-        printc(f'{user} was banned from {guild}.', Ansi.GREEN)
+        log(f'{user} was banned from {guild}.', Ansi.GREEN)
 
     async def enqueue_mutes(self) -> None:
         res = await self.db.fetchall(
@@ -334,7 +320,7 @@ class Aika(commands.Bot):
 
     async def on_error(self, event, args, **kwargs) -> None:
         if event != 'on_message':
-            print(f'{Ansi.LIGHT_RED!r}ERR{Ansi.RESET!r}: {event}')
+            print(f'{Ansi.LRED!r}ERR{Ansi.RESET!r}: {event}')
 
     async def on_command_error(self, ctx: ContextWrap,
                                error: commands.errors.CommandError) -> None:
@@ -408,20 +394,6 @@ class Aika(commands.Bot):
 
         return (any(f in msg for f in self.config.substring_filters) or
                 any(s in self.config.filters for s in msg.split(' ')))
-
-    async def print_console(self, msg: discord.Message, col: Ansi) -> None:
-        if not (res := await self.db.fetch(
-            'SELECT xp FROM aika_users '
-            'WHERE discordid = %s AND guildid = %s',
-            [msg.author.id, msg.guild.id]
-        )): res = {'xp': 0} # user's first time talking.
-
-        author_fmt = f"{msg.author} (Lv. {sqrt(res['xp'] / 50):.2f})"
-        print('{c!r}[{time:%H:%M:%S} {guild} #{chan}]{gray!r} {author}{reset!r}: {msg}'.format(
-            c = col, time = dt.now(tz = tz.utc), guild = msg.channel.guild,
-            chan = msg.channel, gray = Ansi.GRAY, author = author_fmt,
-            reset = Ansi.RESET, msg = msg.clean_content.replace('\u001b', '')
-        ))
 
     @tasks.loop(seconds = 30)
     async def bg_loop(self) -> None:

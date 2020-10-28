@@ -6,9 +6,10 @@
 # i'm witing it for my own use case.
 
 import asyncio
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 import discord
 from discord.ext import commands, tasks
+from cmyui import log, Ansi
 
 import time
 from datetime import (datetime as dt,
@@ -19,15 +20,15 @@ from collections import defaultdict
 from objects.aika import ContextWrap, Leaderboard, Aika
 from pp.owoppai import Owoppai
 
-from constants import Ansi, Mods, regexes
+from constants import Mods, regexes
 from utils import (
     akatsuki_only, gamemode_readable, seconds_readable,
     accuracy_grade, calc_accuracy_std, calc_accuracy_taiko,
     mods_readable, truncate, status_readable,
-    seconds_readable_full, printc
+    seconds_readable_full
 )
 
-FAQ = Dict[str, Union[int, str]]
+FAQ = dict[str, Union[int, str]]
 
 class Akatsuki(commands.Cog):
     def __init__(self, bot: Aika):
@@ -95,7 +96,7 @@ class Akatsuki(commands.Cog):
                         f'```\n{msg.clean_content}```'
                     )))
                 except discord.Forbidden:
-                    printc(f'Failed to DM {msg.author}.', Ansi.LIGHT_RED)
+                    log(f'Failed to DM {msg.author}.', Ansi.LRED)
                 return await msg.delete()
 
             admin_reports = msg.guild.get_channel(channels['admin_report'])
@@ -583,34 +584,34 @@ class Akatsuki(commands.Cog):
         premium = discord.utils.get(akatsuki.roles, name = 'Premium')
         supporter = discord.utils.get(akatsuki.roles, name = 'Supporter')
 
-        res = defaultdict(lambda: 0, {
+        res = defaultdict(int, {
             row['id']: row['privileges'] for row in await self.bot.db.fetchall(
                 'SELECT a.discordid id, u.privileges FROM aika_akatsuki a '
                 'LEFT JOIN users u ON u.id = a.osu_id WHERE a.osu_id'
             )
         })
 
-        col = Ansi.LIGHT_YELLOW
+        col = Ansi.LYELLOW
 
         # Remove roles
         for u in filter(lambda u: premium in u.roles, akatsuki.members):
             if not res[u.id] & (1 << 23):
-                printc(f"Removing {u}'s premium.", col)
+                log(f"Removing {u}'s premium.", col)
                 await u.remove_roles(premium)
 
         for u in filter(lambda u: supporter in u.roles, akatsuki.members):
             if not res[u.id] & (1 << 2):
-                printc(f"Removing {u}'s supporter.", col)
+                log(f"Removing {u}'s supporter.", col)
                 await u.remove_roles(supporter)
 
         # Add roles
         no_role = lambda u: not any(r in u.roles for r in {supporter, premium})
         for u in filter(lambda u: u.id in res and no_role(u), akatsuki.members):
             if res[u.id] & (1 << 23):
-                printc(f"Adding {u}'s premium.", col)
+                log(f"Adding {u}'s premium.", col)
                 await u.add_roles(premium)
             elif res[u.id] & (1 << 2):
-                printc(f"Adding {u}'s supporter.", col)
+                log(f"Adding {u}'s supporter.", col)
                 await u.add_roles(supporter)
 
 
@@ -667,7 +668,7 @@ class Akatsuki(commands.Cog):
         if topic in self._faq:
             return
 
-        printc(f'Adding new FAQ topic - {topic}.', Ansi.YELLOW)
+        log(f'Adding new FAQ topic - {topic}.', Ansi.YELLOW)
         await self.bot.db.execute(
             'INSERT INTO aika_faq '
             '(id, topic, title, content) '
@@ -684,7 +685,7 @@ class Akatsuki(commands.Cog):
         if topic not in self._faq:
             return
 
-        printc(f'Removing FAQ topic - {topic}.', Ansi.YELLOW)
+        log(f'Removing FAQ topic - {topic}.', Ansi.YELLOW)
         await self.bot.db.execute(
             'DELETE FROM aika_faq '
             'WHERE topic = %s',

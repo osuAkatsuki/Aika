@@ -3,13 +3,13 @@
 # This is basically a disaster file of all the utilities i always
 # end up dragging around with me.. and some even more wild ones
 from typing import List, Optional
-from discord.ext import commands
+from cmyui import log, Ansi
 from shutil import copyfile
 from requests import get as req_get
 from os import path
 
 from config import akatsuki
-from constants import Ansi, Mods
+from constants import Mods
 
 def mods_readable(m: int) -> str:
     if not m: return ''
@@ -173,16 +173,13 @@ def truncate(s: str, max_len: int) -> str:
 def akatsuki_only(ctx) -> bool:
     return ctx.guild.id == akatsuki['id']
 
-def printc(s: str, c: Ansi) -> None:
-    print(f'{c!r}{s}{Ansi.RESET!r}')
-
 def ensure_config() -> bool:
     if path.exists('config.py'):
         return True
 
     if not path.exists('config.sample.py'):
         if not (r := req_get('http://tiny.cc/l7wzpz')):
-            printc('Failed to fetch default config.', Ansi.LIGHT_RED)
+            log('Failed to fetch default config.', Ansi.LRED)
             return False
 
         with open('config.sample.py', 'w+') as f:
@@ -190,5 +187,5 @@ def ensure_config() -> bool:
 
     copyfile('config.sample.py', 'config.py')
 
-    printc('A default config has been generated.', Ansi.CYAN)
+    log('A default config has been generated.', Ansi.CYAN)
     return False
