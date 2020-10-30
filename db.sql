@@ -4,7 +4,6 @@ create table aika_users
 	guildid bigint(20) not null,
 	xp int(11) default 0 not null,
 	last_xp int(11) default 0 not null,
-	strikes smallint(6) default 0 not null comment 'I guess tinyint could be too small? lol',
 	muted_until int(11) default 0 not null,
 	notes varchar(2048) null comment 'Probably enough space?',
 	primary key (discordid, guildid)
@@ -47,4 +46,14 @@ create table aika_faq
     unique (title),
   constraint aika_faq_topic_uindex
     unique (topic)
+);
+
+create table aika_strikes
+(
+	id int auto_increment
+		primary key,
+	discordid bigint not null,
+	guildid bigint not null,
+	time datetime not null,
+	reason varchar(256) not null
 );

@@ -112,6 +112,52 @@ class Guild(commands.Cog):
             # they can re-enable it if it was a mistake.. :/
             # doing by dm can work but some people will block them
 
+    @commands.command()
+    @commands.guild_only()
+    @commands.has_guild_permissions(ban_members=True)
+    async def removestrike(self, ctx: ContextWrap, *,
+                           strike_id: int) -> None:
+        res = await self.bot.db.fetch(
+            'SELECT 1 FROM aika_strikes '
+            'WHERE id = %s',
+            [strike_id]
+        )
+
+        if not res:
+            return await ctx.send('No strike found!')
+
+        await self.bot.db.execute(
+            'DELETE FROM aika_strikes '
+            'WHERE id = %s',
+            [strike_id]
+        )
+
+        await ctx.message.add_reaction('\N{WHITE HEAVY CHECK MARK}')
+
+    @commands.command()
+    @commands.guild_only()
+    @commands.has_guild_permissions(ban_members=True)
+    async def strikes(self, ctx: ContextWrap, *,
+                      member: discord.Member) -> None:
+        res = await self.bot.db.fetchall(
+            'SELECT id, time, reason '
+            'FROM aika_strikes '
+            'WHERE discordid = %s '
+            'AND guildid = %s',
+            [member.id, ctx.guild.id]
+        )
+
+        if not res:
+            return await ctx.send("U are doing well young paddawan..")
+
+        await ctx.send(embed=discord.Embed(
+            title = f"{member}'s strikes",
+            description = '\n'.join(
+                '[{time}] {id}. {reason}'.format(**row)
+                for row in res
+            )
+        ))
+
     @commands.command(aliases=['warn'])
     @commands.guild_only()
     @commands.has_guild_permissions(ban_members=True)
@@ -129,6 +175,12 @@ class Guild(commands.Cog):
         max_strikes = guild_opts['max_strikes']
         strikes = {}
 
+        rgx = constants.regexes['mention']
+
+        # a little cursed but i'm sure this is fine for most situations.
+        _reason = ctx.message.content[len(ctx.prefix + ctx.invoked_with) + 1:]
+        reason = ' '.join(rgx.sub('', _reason).strip().split())[:256]
+
         for u in mentions:
             # make sure we have sufficient perms.
             if u.top_role >= ctx.author.top_role:
@@ -138,21 +190,21 @@ class Guild(commands.Cog):
                 'INSERT INTO aika_strikes '
                 '(discordid, guildid, reason, time) '
                 'VALUES (%s, %s, %s, NOW())',
-                [u.id, ctx.guild.id],
+                [u.id, ctx.guild.id, reason],
             )
 
-            nstrikes = await self.bot.db.fetch(
+            nstrikes, = await self.bot.db.fetch(
                 'SELECT COUNT(*) FROM aika_strikes '
                 'WHERE discordid = %s AND guildid = %s',
                 [u.id, ctx.guild.id], _dict=False
-            )[0]
+            )
 
             if nstrikes >= max_strikes:
                 # the user has hit the max, and will be banned.
-                strikes.update({u.name: f'{nstrikes} (banned)'})
+                strikes |= {u.name: f'{nstrikes} (banned)'}
 
                 await u.ban(
-                    reason = 'Reached strike limit.',
+                    reason = f'Striked above limit ({nstrikes}/{max_strikes}) [{reason}].',
                     delete_message_days = 0
                 )
 
@@ -161,24 +213,10 @@ class Guild(commands.Cog):
                 # about how i want this to work.
 
             else:
-                strikes.update({u.name: nstrikes}) # no need to cast really..
+                strikes |= {u.name: nstrikes} # no need to cast really..
 
-        if not strikes:
-            return await ctx.send('No changes were made.')
-
-        # construct a response containing the user's new statuses.
-        e = discord.Embed(
-            colour = self.bot.config.embed_colour,
-            title = 'Strikes applied successfully',
-            description = ('The results can be seen below.\n'
-                          f'{Leaderboard(data=strikes)!r}')
-        )
-
-        e.set_footer(text = (
-            f'Reaching {max_strikes} strikes will result in a ban!\n'
-            f'Aika v{self.bot.version}'
-        ))
-        await ctx.send(embed=e)
+        if strikes:
+            await ctx.message.add_reaction('\N{WHITE HEAVY CHECK MARK}')
 
     @commands.command()
     @commands.guild_only()

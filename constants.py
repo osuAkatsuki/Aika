@@ -9,7 +9,8 @@ regexes = {
     'song_name': re.compile(r'(?P<artist>.+) - (?P<sn>.+)\[(?P<diff>.+)\]'),
     'cmd_prefix': re.compile(r'^[\x21-\x3F\x41-\x7E]{1,8}$'),
     'mention': re.compile(r'<@!?(?P<id>\d{18,20})>'),
-    'duration': re.compile(r'^(?P<duration>[1-9]\d*)(?P<period>s|m|h|d|w)?$')
+    'duration': re.compile(r'^(?P<duration>[1-9]\d*)(?P<period>s|m|h|d|w)?$'),
+    'mention': re.compile(r'<@!?\d{18,20}>')
 }
 
 class Mods(IntEnum):
