@@ -137,7 +137,7 @@ class Aika(commands.Bot):
     async def connect_db(self) -> None:
         try:
             self.db = AsyncSQLPoolWrapper()
-            await self.db.connect(**self.config.mysql)
+            await self.db.connect(self.config.mysql)
         except SQLError as err:
             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
                 raise Exception('SQLError: Incorrect username/password.')
