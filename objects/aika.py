@@ -3,7 +3,7 @@
 import asyncio
 from collections import defaultdict
 from typing import Union, Optional
-from cmyui import AsyncSQLPoolWrapper, log, Ansi, Version
+from cmyui import AsyncSQLPool, log, Ansi, Version
 import discord
 import aiohttp
 from discord.ext import commands, tasks
@@ -105,7 +105,7 @@ class Aika(commands.Bot):
             help_command = None
         )
 
-        self.db: Optional[AsyncSQLPoolWrapper] = None
+        self.db: Optional[AsyncSQLPool] = None
         self.http_sess: Optional[aiohttp.ClientSession] = None
 
         # Various types of cache
@@ -136,7 +136,7 @@ class Aika(commands.Bot):
 
     async def connect_db(self) -> None:
         try:
-            self.db = AsyncSQLPoolWrapper()
+            self.db = AsyncSQLPool()
             await self.db.connect(self.config.mysql)
         except SQLError as err:
             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
@@ -318,12 +318,13 @@ class Aika(commands.Bot):
               col = repr(Ansi.GREEN), reset = repr(Ansi.RESET),
               user = self.user, userid = self.user.id))
 
-    async def on_error(self, event, args, **kwargs) -> None:
+    async def on_error(self, event, *args, **kwargs) -> None:
         if event != 'on_message':
-            print(f'{Ansi.LRED!r}ERR{Ansi.RESET!r}: {event}')
+            print(f'{Ansi.LRED!r}ERR{Ansi.RESET!r}: '
+                  f'{event} ({args} {kwargs})')
 
     async def on_command_error(self, ctx: ContextWrap,
-                               error: commands.errors.CommandError) -> None:
+                               error: commands.CommandError) -> None:
         if hasattr(ctx.command, 'on_error'):
             return
 
@@ -369,7 +370,7 @@ class Aika(commands.Bot):
         if message.author.bot:
             return
 
-        ctx = await self.get_context(message, cls = ContextWrap)
+        ctx = await self.get_context(message, cls=ContextWrap)
         await self.invoke(ctx)
 
     #########
@@ -438,7 +439,7 @@ class Aika(commands.Bot):
             try:
                 await self.start(self.config.discord_token,
                                  *args, **kwargs)
-            except:
+            finally:
                 # close http session
                 await self.http_sess.close()
 
