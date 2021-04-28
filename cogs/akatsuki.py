@@ -133,7 +133,8 @@ class Akatsuki(commands.Cog):
             'WHERE a.discordid = %s', [discordID]
         )
 
-        return res if res and res['id'] else None
+        if res and res['id']:
+            return res
 
     async def get_osu_from_name(self, username: str) -> Optional[dict[str, Union[int, str]]]:
         return await self.bot.db.fetch(
@@ -208,7 +209,7 @@ class Akatsuki(commands.Cog):
 
                 f'FROM {table} s '
                 'LEFT JOIN beatmaps b USING(beatmap_md5) '
-                'WHERE s.userid = %s AND b.ranked IN (2, 3, 5) '
+                'WHERE s.userid = %s AND b.ranked IN (2, 3) '
                 'AND s.play_mode = %s AND s.completed = 3 '
                 'ORDER BY s.pp DESC LIMIT 3',
                 [user['id'], gm]
@@ -543,23 +544,6 @@ class Akatsuki(commands.Cog):
             e.set_image(url = f"https://assets.ppy.sh/beatmaps/{res['bsid']}/covers/cover.jpg")
             await ctx.send(embed = e)
 
-    @commands.command()
-    @commands.guild_only()
-    async def unlink(self, ctx: ContextWrap) -> None:
-        if not (user := await self.get_osu(ctx.author.id)):
-            return await ctx.send("Couldn't find a linked account!")
-
-        await self.bot.db.execute(
-            'DELETE FROM aika_akatsuki '
-            'WHERE discordid = %s AND osu_id = %s',
-            [ctx.author.id, user['id']]
-        )
-
-        return await ctx.send('\n'.join([
-            'Account unlinked.',
-            f'(https://akatsuki.pw/u/{user["id"]})'
-        ]))
-
     @commands.command(aliases=['linkosu'])
     @commands.guild_only()
     async def link(self, ctx: ContextWrap) -> None:
@@ -594,6 +578,24 @@ class Akatsuki(commands.Cog):
         )
 
         # Other bit of the process is done on osu! by the user.
+        pass
+
+    @commands.command(aliases=['unlinkosu'])
+    @commands.guild_only()
+    async def unlink(self, ctx: ContextWrap) -> None:
+        if not (user := await self.get_osu(ctx.author.id)):
+            return await ctx.send("Couldn't find a linked account!")
+
+        await self.bot.db.execute(
+            'DELETE FROM aika_akatsuki '
+            'WHERE discordid = %s AND osu_id = %s',
+            [ctx.author.id, user['id']]
+        )
+
+        return await ctx.send('\n'.join([
+            'Account unlinked.',
+            f'(https://akatsuki.pw/u/{user["id"]})'
+        ]))
 
     @commands.command(hidden=True)
     @commands.guild_only()
