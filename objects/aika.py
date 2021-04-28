@@ -469,6 +469,4 @@ class Aika(commands.Bot):
         finally:
             self.bg_loop.cancel()
 
-    @property
-    def config(self):
-        return __import__('config')
+    config = __import__('config')
