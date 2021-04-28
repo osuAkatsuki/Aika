@@ -550,8 +550,8 @@ class Akatsuki(commands.Cog):
             return await ctx.send("Couldn't find a linked account!")
 
         await self.bot.db.execute(
-            "DELETE FROM aika_akatsuki a "
-            "WHERE a.discordid = %s AND a.osu_id = %s",
+            'DELETE FROM aika_akatsuki '
+            'WHERE discordid = %s AND osu_id = %s',
             [ctx.author.id, user['id']]
         )
 
