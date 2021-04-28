@@ -295,7 +295,7 @@ class Akatsuki(commands.Cog):
 
                 ifFc, row['difficulty'] = calc.calculate_pp()
 
-                if row['pp']:
+                if row['pp'] != 0:
                     row['pp'] = f"{row['pp']:,.2f}pp"
 
                     # If the user didn't fc, we need to print out
@@ -463,6 +463,9 @@ class Akatsuki(commands.Cog):
                 res['hit_length'] = int(res['hit_length'] * 1.5)
                 res['bpm'] = int(res['bpm'] / 1.5)
 
+            # the rumoi no-join method
+            pp_column = 'score' if res['ranked'] == 5 else 'pp'
+
             # Length and ranked status as formatted strings
             res['length'] = seconds_readable(int(res['hit_length']))
             res['ranked'] = status_readable(res['ranked'])
@@ -500,8 +503,8 @@ class Akatsuki(commands.Cog):
 
             ifFc, res['difficulty'] = calc.calculate_pp()
 
-            if res['pp']:
-                res['pp'] = f"{res['pp']:,.2f}pp"
+            if res[pp_column] != 0:
+                res['pp'] = f"{res[pp_column]:,.2f}pp"
 
                 # If the user didn't fc, we need to print out
                 # the amount it would have been for an fc
