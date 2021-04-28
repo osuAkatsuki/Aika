@@ -126,7 +126,7 @@ class Akatsuki(commands.Cog):
     ### osu! ###
     ############
 
-    async def get_osu(self, discordID: int) -> Optional[int]:
+    async def get_osu(self, discordID: int) -> Optional[dict[str, Union[int, str]]]:
         res = await self.bot.db.fetch(
             'SELECT a.osu_id id, u.username name, u.privileges priv '
             'FROM aika_akatsuki a LEFT JOIN users u ON u.id = a.osu_id '
@@ -135,7 +135,7 @@ class Akatsuki(commands.Cog):
 
         return res if res and res['id'] else None
 
-    async def get_osu_from_name(self, username: str) -> Optional[int]:
+    async def get_osu_from_name(self, username: str) -> Optional[dict[str, Union[int, str]]]:
         return await self.bot.db.fetch(
             'SELECT id, username name, privileges priv '
             'FROM users WHERE username = %s',
