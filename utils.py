@@ -79,6 +79,7 @@ def gamemode_readable(m: int) -> str:
 def status_readable(s: int) -> str:
     return {
         5: 'Loved',
+        3: 'Approved',
         2: 'Ranked',
         0: 'Unranked'
     }[s]
