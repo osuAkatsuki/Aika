@@ -712,6 +712,9 @@ class Akatsuki(commands.Cog):
     @commands.guild_only()
     @commands.check(akatsuki_only)
     async def faq(self, ctx: ContextWrap) -> None:
+        if ctx.channel.id == self.bot.config.akatsuki['channels']['verify']:
+            return # don't allow ppl to use !faq in #verify
+
         split = ctx.message.content.split(' ')
         topic = None
 
