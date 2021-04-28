@@ -543,6 +543,23 @@ class Akatsuki(commands.Cog):
             e.set_image(url = f"https://assets.ppy.sh/beatmaps/{res['bsid']}/covers/cover.jpg")
             await ctx.send(embed = e)
 
+    @commands.command()
+    @commands.guild_only()
+    async def unlink(self, ctx: ContextWrap) -> None:
+        if not (user := await self.get_osu(ctx.author.id)):
+            return await ctx.send("Couldn't find a linked account!")
+
+        await self.bot.db.execute(
+            "DELETE FROM aika_akatsuki a "
+            "WHERE a.discordid = %s AND a.osu_id = %s",
+            [ctx.author.id, user['id']]
+        )
+
+        return await ctx.send('\n'.join([
+            'Account unlinked.',
+            f'(https://akatsuki.pw/u/{user["id"]})'
+        ]))
+
     @commands.command(aliases=['linkosu'])
     @commands.guild_only()
     async def link(self, ctx: ContextWrap) -> None:
