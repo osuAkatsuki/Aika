@@ -1,18 +1,27 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
-from collections import defaultdict
-from typing import Union, Optional
-from cmyui import AsyncSQLPool, log, Ansi, Version
-import discord
-import aiohttp
-from discord.ext import commands, tasks
-import traceback
+import importlib
 import time
-import orjson
+import traceback
+from collections import defaultdict
+from typing import Optional
+from typing import Union
 
-from mysql.connector import errorcode, Error as SQLError
-from utils import asciify, truncate
+import aiohttp
+import discord
+import orjson
+from cmyui import Ansi
+from cmyui import AsyncSQLPool
+from cmyui import log
+from cmyui import Version
+from discord.ext import commands
+from discord.ext import tasks
+from mysql.connector import Error as SQLError
+from mysql.connector import errorcode
+
+from utils import asciify
+from utils import truncate
 
 __all__ = (
     'Leaderboard',
@@ -98,11 +107,11 @@ class ContextWrap(commands.Context):
 class Aika(commands.Bot):
     __slots__ = ('db', 'http', 'cache', 'version', 'uptime')
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(
             owner_id = self.config.discord_owner,
             command_prefix = self.when_mentioned_or_prefix(),
-            help_command = None
+            help_command = None, **kwargs
         )
 
         self.db: Optional[AsyncSQLPool] = None
@@ -447,7 +456,7 @@ class Aika(commands.Bot):
                 self.db.pool.close()
                 await self.db.pool.wait_closed()
 
-                # close any discordpy
+                # close any discord.py
                 # bot related stuff.
                 await self.close()
 

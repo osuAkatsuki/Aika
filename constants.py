@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from typing import Final
-from enum import IntEnum
 import re
+from enum import IntEnum
+from typing import Final
 
 regexes = {
     'beatmap_url': re.compile(r'(?:https?://)?(?:www.)?akatsuki.pw/b/(?P<bid>\d{1,7})/?'),

@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import discord
-from discord.ext import commands
 import time
 
-from objects.aika import Aika, ContextWrap, Leaderboard
+import discord
+from discord.ext import commands
+
 import constants
+from objects.aika import Aika
+from objects.aika import ContextWrap
 
 class Guild(commands.Cog):
     def __init__(self, bot: Aika):

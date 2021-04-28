@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from typing import Tuple
-from os import chdir, path
-from subprocess import run, PIPE
 from json import loads
+from os import chdir
+from os import path
+from subprocess import PIPE
+from subprocess import run
+
 from requests import get
 
 import utils
@@ -46,7 +48,7 @@ class Owoppai:
         self.gamemode = kwargs.get('mode', 0)
         self.accuracy = kwargs.get('accuracy', -1.0)
 
-    def calculate_pp(self) -> Tuple[float]:
+    def calculate_pp(self) -> tuple[float]:
         # This function can either return a list of
         # PP values, # or just a single PP value.
         if not self.filename: raise Exception(

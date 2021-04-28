@@ -2,8 +2,9 @@
 
 from discord.ext import commands
 
+from objects.aika import Aika
+from objects.aika import ContextWrap
 from utils import akatsuki_only
-from objects.aika import ContextWrap, Aika
 
 class Tourney(commands.Cog):
     def __init__(self, bot: Aika):

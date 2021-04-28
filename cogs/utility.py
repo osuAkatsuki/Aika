@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import discord
-from discord.ext import commands
 from time import time
 
-from objects.aika import ContextWrap, Aika
+import discord
+from discord.ext import commands
+
+from objects.aika import Aika
+from objects.aika import ContextWrap
 from utils import seconds_readable
 
 class Utility(commands.Cog):

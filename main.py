@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ()
+import os
 
-if __name__ != '__main__':
-    raise Exception('main.py is meant to be run directly.')
-
-from os import chdir, path
-from utils import ensure_config
+import discord
 
 from objects.aika import Aika
+from utils import ensure_config
 
-chdir(path.dirname(path.realpath(__file__)))
+__all__ = ()
 
-if ensure_config():
-    aika = Aika()
-    aika.run() # blocking call
+if __name__ == '__main__':
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
+    if ensure_config():
+        intents = discord.Intents.default()
+        #intents.members = True
+        Aika(intents=intents).run() # blocking call

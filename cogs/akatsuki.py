@@ -6,27 +6,35 @@
 # i'm witing it for my own use case.
 
 import asyncio
-from typing import Optional, Union
-import discord
-from discord.ext import commands, tasks
-from cmyui import log, Ansi
-
 import time
-from datetime import (datetime as dt,
-                      timezone as tz)
-
 from collections import defaultdict
+from datetime import datetime as dt
+from datetime import timezone as tz
+from typing import Optional
+from typing import Union
 
-from objects.aika import ContextWrap, Leaderboard, Aika
+import discord
+from cmyui import Ansi
+from cmyui import log
+from discord.ext import commands
+from discord.ext import tasks
+
+from constants import Mods
+from constants import regexes
+from objects.aika import Aika
+from objects.aika import ContextWrap
+from objects.aika import Leaderboard
 from pp.owoppai import Owoppai
-
-from constants import Mods, regexes
-from utils import (
-    akatsuki_only, gamemode_readable, seconds_readable,
-    accuracy_grade, calc_accuracy_std, calc_accuracy_taiko,
-    mods_readable, truncate, status_readable,
-    seconds_readable_full
-)
+from utils import accuracy_grade
+from utils import akatsuki_only
+from utils import calc_accuracy_std
+from utils import calc_accuracy_taiko
+from utils import gamemode_readable
+from utils import mods_readable
+from utils import seconds_readable
+from utils import seconds_readable_full
+from utils import status_readable
+from utils import truncate
 
 FAQ = dict[str, Union[int, str]]
 
@@ -68,8 +76,10 @@ class Akatsuki(commands.Cog):
             # we're done unless we're running on official
             return
 
-        if msg.channel.id == channels['verify'] \
-        and not await self.bot.is_owner(msg.author):
+        if (
+            msg.channel.id == channels['verify'] and
+            not await self.bot.is_owner(msg.author)
+        ):
             # sooo shit should be command
             if msg.content[1:] == 'verify':
                 members = discord.utils.get(msg.guild.roles, name='Members')
@@ -188,20 +198,20 @@ class Akatsuki(commands.Cog):
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
-            if not (res := await self.bot.db.fetchall(' '.join((
-                'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo,',
-                's.mods, s.300_count n300, s.100_count n100,',
-                's.50_count n50, s.misses_count nmiss, s.time, s.completed,',
+            if not (res := await self.bot.db.fetchall(
+                'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo, '
+                's.mods, s.300_count n300, s.100_count n100, '
+                's.50_count n50, s.misses_count nmiss, s.time, s.completed, '
 
-                'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, b.bpm,',
-                'b.ar, b.od, b.max_combo as b_combo, b.hit_length, b.ranked',
+                'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, b.bpm, '
+                'b.ar, b.od, b.max_combo as b_combo, b.hit_length, b.ranked '
 
-                f'FROM {table} s',
-                'LEFT JOIN beatmaps b USING(beatmap_md5)',
-                'WHERE s.userid = %s AND s.play_mode = %s',
-                'AND b.ranked = 2 AND s.completed = 3',
-                'ORDER BY s.pp DESC LIMIT 3'
-                )), [user['id'], gm]
+                f'FROM {table} s '
+                'LEFT JOIN beatmaps b USING(beatmap_md5) '
+                'WHERE s.userid = %s AND s.play_mode = %s '
+                'AND b.ranked IN (2, 3) AND s.completed = 3 '
+                'ORDER BY s.pp DESC LIMIT 3',
+                [user['id'], gm]
             )): return await ctx.send('The user has no scores!')
 
             e = discord.Embed(colour = self.bot.config.embed_colour)
@@ -254,10 +264,6 @@ class Akatsuki(commands.Cog):
                             row['nmiss']) if row['completed'] != 0 else 'F'
                     ])
 
-                # Use oppai to calculate pp if FC,
-                # along with star rating with mods.
-                calc = Owoppai()
-
                 # "fc" is atleast 98% of fc combo + no misses
                 is_fc = (row['s_combo'] > int(row['b_combo'] * 0.98) and
                          row['nmiss'] == 0)
@@ -274,6 +280,10 @@ class Akatsuki(commands.Cog):
                         n300 = row['n300'],
                         n150 = row['n100'], # lol
                         nmiss = 0)) * 100.0
+
+                # Use oppai to calculate pp if FC,
+                # along with star rating with mods.
+                calc = Owoppai()
 
                 calc.configure(
                     filename = row['bid'],
@@ -377,8 +387,10 @@ class Akatsuki(commands.Cog):
             return await ctx.send('Could not find all users specified.')
 
         # only allow bot owner to fetch restricted users
-        if not all(u['priv'] & 1 for u in users) \
-        and not await self.bot.is_owner(ctx.author):
+        if (
+            not all(u['priv'] & 1 for u in users) and
+            not await self.bot.is_owner(ctx.author)
+        ):
             return await ctx.send(
                 "You have insufficient privileges.")
 
@@ -388,20 +400,20 @@ class Akatsuki(commands.Cog):
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
-            if not (res := await self.bot.db.fetch(' '.join((
+            if not (res := await self.bot.db.fetch(
                 # Get all information we need for the embed.
-                'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo,',
-                's.mods, s.300_count n300, s.100_count n100,',
-                's.50_count n50, s.misses_count nmiss, s.time, s.completed,',
+                'SELECT s.score, s.pp, s.accuracy acc, s.max_combo '
+                's_combo, s.mods, s.300_count n300, s.100_count n100, '
+                's.50_count n50, s.misses_count nmiss, s.time, s.completed, '
 
-                'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, b.bpm,',
-                'b.ar, b.od, b.max_combo as b_combo, b.hit_length, b.ranked',
+                'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, b.bpm, '
+                'b.ar, b.od, b.max_combo as b_combo, b.hit_length, b.ranked '
 
-                f'FROM {table} s',
-                'LEFT JOIN beatmaps b USING(beatmap_md5)',
-                'WHERE b.ranked = 2 AND s.userid = %s',
-                'AND s.play_mode = %s',
-                'ORDER BY s.time DESC LIMIT 1')),
+                f'FROM {table} s '
+                'LEFT JOIN beatmaps b USING(beatmap_md5) '
+                'WHERE s.userid = %s AND b.ranked IN (2, 3) '
+                'AND s.play_mode = %s '
+                'ORDER BY s.time DESC LIMIT 1',
                 [user['id'], gm]
             )): return await ctx.send('The user has no scores!')
 
@@ -438,8 +450,10 @@ class Akatsuki(commands.Cog):
                     accuracy_grade(
                         gm, res['acc'], res['mods'],
                         res['n300'], res['n100'], res['n50'],
-                        res['nmiss']) if res['completed'] != 0 else 'F'
-                ])
+                        res['nmiss']
+                    ) if res['completed'] != 0 else 'F'
+                ]
+            )
 
             if res['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
                 res['hit_length'] = int(res['hit_length'] / 1.5)
@@ -451,10 +465,6 @@ class Akatsuki(commands.Cog):
             # Length and ranked status as formatted strings
             res['length'] = seconds_readable(int(res['hit_length']))
             res['ranked'] = status_readable(res['ranked'])
-
-            # Use oppai to calculate pp if FC,
-            # along with star rating with mods.
-            calc = Owoppai()
 
             is_fc = (res['s_combo'] > int(res['b_combo'] * 0.98) and
                      res['nmiss'] == 0)
@@ -475,6 +485,10 @@ class Akatsuki(commands.Cog):
                         nmiss = 0
                     )
                 ) * 100.0
+
+            # Use oppai to calculate pp if FC,
+            # along with star rating with mods.
+            calc = Owoppai()
 
             calc.configure(
                 filename = res['bid'],

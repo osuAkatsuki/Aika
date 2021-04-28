@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
 
-from typing import Union
-import discord
-from discord.ext import commands, tasks
-from random import randrange
-from math import sqrt
 import time
+from math import sqrt
+from random import randrange
+from typing import Union
 
+import discord
+from discord.ext import commands
+from discord.ext import tasks
+
+from objects.aika import Aika
+from objects.aika import ContextWrap
+from objects.aika import Leaderboard
 from utils import try_parse_float
-from objects.aika import Leaderboard, ContextWrap, Aika
 
 class User(commands.Cog):
     def __init__(self, bot: Aika):

@@ -2,11 +2,14 @@
 
 # This is basically a disaster file of all the utilities i always
 # end up dragging around with me.. and some even more wild ones
-from typing import List, Optional
-from cmyui import log, Ansi
-from shutil import copyfile
-from requests import get as req_get
+
 from os import path
+from shutil import copyfile
+from typing import Optional
+
+from cmyui import Ansi
+from cmyui import log
+from requests import get as req_get
 
 from config import akatsuki
 from constants import Mods
@@ -14,7 +17,7 @@ from constants import Mods
 def mods_readable(m: int) -> str:
     if not m: return ''
 
-    r: List[str] = []
+    r: list[str] = []
     if m & Mods.NOFAIL:       r.append('NF')
     if m & Mods.EASY:         r.append('EZ')
     if m & Mods.TOUCHSCREEN:  r.append('TD')
@@ -30,7 +33,7 @@ def mods_readable(m: int) -> str:
     return ''.join(r)
 
 def seconds_readable(seconds: int) -> str:
-    r: List[str] = []
+    r: list[str] = []
 
     days, seconds = divmod(seconds, 60 * 60 * 24)
     if days: r.append(f'{days:02d}')
@@ -44,7 +47,7 @@ def seconds_readable(seconds: int) -> str:
     return ':'.join(r + [f'{seconds % 60:02d}'])
 
 def seconds_readable_full(seconds: int) -> str:
-    r: List[str] = []
+    r: list[str] = []
 
     days, seconds = divmod(seconds, 60 * 60 * 24)
     if days: r.append(f'{days} days')
@@ -90,7 +93,7 @@ def calc_accuracy_std(
         n50 * 50.0,
         n100 * 100.0,
         n300 * 300.0
-        )) / (total * 300)
+    )) / (total * 300)
 
 def calc_accuracy_taiko(
     n300: int, n150: int,
