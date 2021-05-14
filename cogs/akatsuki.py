@@ -85,16 +85,6 @@ class Akatsuki(commands.Cog):
                 members = discord.utils.get(msg.guild.roles, name='Members')
                 await msg.author.add_roles(members)
 
-                general_chan, faq_chan, help_chan = [
-                    discord.utils.get(msg.guild.text_channels, name = m)
-                    for m in ('general', 'faq', 'help')
-                ]
-
-                await general_chan.send('\n'.join((
-                    f'Welcome {msg.author.mention} to Akatsuki!',
-                    f'If you need help, check out {faq_chan.mention}, or ask in {help_chan.mention}.'
-                )))
-
             await msg.delete()
 
         elif msg.channel.id == channels['user_report']:
