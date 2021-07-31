@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
-import importlib
 import time
 import traceback
 from collections import defaultdict
@@ -11,14 +10,12 @@ from typing import Union
 import aiohttp
 import discord
 import orjson
-from cmyui import Ansi
-from cmyui import AsyncSQLPool
-from cmyui import log
-from cmyui import Version
+from cmyui.logging import Ansi
+from cmyui.logging import log
+from cmyui.mysql import AsyncSQLPool
+from cmyui.version import Version
 from discord.ext import commands
 from discord.ext import tasks
-from mysql.connector import Error as SQLError
-from mysql.connector import errorcode
 
 from utils import asciify
 from utils import truncate
@@ -28,6 +25,8 @@ __all__ = (
     'ContextWrap',
     'Aika'
 )
+
+AKATSUKI_API__ONLINE_USERS = 'http://144.217.254.156:5001/api/v1/onlineUsers'
 
 class Leaderboard:
     """A simple class to create simple readable key: value pair
@@ -138,24 +137,6 @@ class Aika(commands.Bot):
             return commands.when_mentioned_or(prefix)(bot, msg)
 
         return inner
-
-    #########
-    # MySQL #
-    #########
-
-    async def connect_db(self) -> None:
-        try:
-            self.db = AsyncSQLPool()
-            await self.db.connect(self.config.mysql)
-        except SQLError as err:
-            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                raise Exception('SQLError: Incorrect username/password.')
-            elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                raise Exception('SQLError: Database does not exist')
-            else:
-                raise Exception(err)
-        else:
-            print('Successfully connected to SQL')
 
     ##########
     # Events #
@@ -327,10 +308,10 @@ class Aika(commands.Bot):
               col = repr(Ansi.GREEN), reset = repr(Ansi.RESET),
               user = self.user, userid = self.user.id))
 
-    async def on_error(self, event, *args, **kwargs) -> None:
-        if event != 'on_message':
-            print(f'{Ansi.LRED!r}ERR{Ansi.RESET!r}: '
-                  f'{event} ({args} {kwargs})')
+    #async def on_error(self, event, *args, **kwargs) -> None:
+    #    if event != 'on_message':
+    #        print(f'{Ansi.LRED!r}ERR{Ansi.RESET!r}: '
+    #              f'{event} ({args} {kwargs})')
 
     async def on_command_error(self, ctx: ContextWrap,
                                error: commands.CommandError) -> None:
@@ -352,12 +333,15 @@ class Aika(commands.Bot):
         elif isinstance(error, commands.NoPrivateMessage):
             try:
                 return await ctx.author.send(f'{ctx.command} can only be used in guilds.')
-            except:
+            except discord.errors.Forbidden:
+                # user is not accepting our dms
                 pass
 
         elif isinstance(error, commands.CommandOnCooldown):
-            return await ctx.send('{u} that commands is still on cooldown ({t:.1f}s)'.format(
-                u = ctx.author.mention, t = error.retry_after))
+            return await ctx.send(
+                f'{ctx.author.mention} that commands is still '
+                f'on cooldown ({error:.1f}s)'
+            )
 
         elif isinstance(error, commands.BotMissingPermissions):
             return await ctx.send('I have insufficient guild permissions to perform that command.')
@@ -376,11 +360,9 @@ class Aika(commands.Bot):
     ########
 
     async def process_commands(self, message):
-        if message.author.bot:
-            return
-
-        ctx = await self.get_context(message, cls=ContextWrap)
-        await self.invoke(ctx)
+        if not message.author.bot:
+            ctx = await self.get_context(message, cls=ContextWrap)
+            await self.invoke(ctx)
 
     #########
     # Utils #
@@ -405,12 +387,12 @@ class Aika(commands.Bot):
         return (any(f in msg for f in self.config.substring_filters) or
                 any(s in self.config.filters for s in msg.split(' ')))
 
-    @tasks.loop(seconds = 30)
+    @tasks.loop(seconds=15)
     async def bg_loop(self) -> None:
         await self.wait_until_ready()
 
         akat_url = 'http://144.217.254.156:5001/api/v1/onlineUsers'
-        async with self.http_sess.get(akat_url) as r:
+        async with self.http_sess.get(AKATSUKI_API__ONLINE_USERS) as r:
             if r.status == 200:
                 online = (await r.json(content_type=None))['result']
             else:
@@ -422,42 +404,38 @@ class Aika(commands.Bot):
         )
 
     def run(self, *args, **kwargs) -> None:
-        async def runner():
+        async def runner() -> None:
             # get our db connection & http client
-            await self.connect_db()
+            self.db = AsyncSQLPool()
+            await self.db.connect(self.config.mysql)
+            log('Connected to mysql.', Ansi.GREEN)
 
-            self.http_sess = aiohttp.ClientSession(
-                json_serialize = orjson.dumps # use for speed
-            )
+            self.http_sess = aiohttp.ClientSession(json_serialize=orjson.dumps)
 
             # load guild settings into cache
-            res = await self.db.fetchall('SELECT * FROM aika_guilds')
-
             self.cache['guilds'] = {
                 row['guildid']: {k: row[k] for k in set(row) - {'guildid'}}
-                for row in res
+                for row in await self.db.fetchall('SELECT * FROM aika_guilds')
             }
 
             try: # load all of Aika's enabled cogs.
-                [self.load_extension(f'cogs.{e}')
-                 for e in self.config.initial_extensions]
-            except Exception as e:
-                print(f'Failed to load extension {e}.')
-                traceback.print_exc()
+                for ext in self.config.initial_extensions:
+                    self.load_extension(f'cogs.{ext}')
+            except:
+                print(f'Failed to load extension {ext}.')
+                raise RuntimeError(f'Failed to load extension {ext}.')
 
             try:
+                # start the bot in discordpy
                 await self.start(self.config.discord_token,
                                  *args, **kwargs)
             finally:
-                # close http session
+                # clean up any active sessions
                 await self.http_sess.close()
 
-                # close db conn pool.
                 self.db.pool.close()
                 await self.db.pool.wait_closed()
 
-                # close any discord.py
-                # bot related stuff.
                 await self.close()
 
         loop = asyncio.get_event_loop()

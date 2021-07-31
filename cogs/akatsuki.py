@@ -14,23 +14,22 @@ from typing import Optional
 from typing import Union
 
 import discord
-from cmyui import Ansi
-from cmyui import log
+from cmyui.logging import Ansi
+from cmyui.logging import log
+from cmyui.osu.mods import Mods
+from cmyui.osu.oppai_ng import OppaiWrapper
 from discord.ext import commands
 from discord.ext import tasks
 
-from constants import Mods
 from constants import regexes
 from objects.aika import Aika
 from objects.aika import ContextWrap
 from objects.aika import Leaderboard
-from pp.owoppai import Owoppai
 from utils import accuracy_grade
 from utils import akatsuki_only
 from utils import calc_accuracy_std
 from utils import calc_accuracy_taiko
 from utils import gamemode_readable
-from utils import mods_readable
 from utils import seconds_readable
 from utils import seconds_readable_full
 from utils import status_readable
@@ -39,7 +38,7 @@ from utils import truncate
 FAQ = dict[str, Union[int, str]]
 
 class Akatsuki(commands.Cog):
-    def __init__(self, bot: Aika):
+    def __init__(self, bot: Aika) -> None:
         self.bot = bot
         self._faq = None
 
@@ -51,7 +50,7 @@ class Akatsuki(commands.Cog):
             # we're on the Akatsuki server.
             self.manage_roles.start()
 
-    def cog_unload(self):
+    def cog_unload(self) -> None:
         if self.bot.config.server_build:
             self.manage_roles.cancel()
 
@@ -274,16 +273,20 @@ class Akatsuki(commands.Cog):
 
                 # Use oppai to calculate pp if FC,
                 # along with star rating with mods.
-                calc = Owoppai()
+                with OppaiWrapper('oppai-ng/liboppai.so') as ezpp:
+                    ezpp.configure(
+                        mode=gm,
+                        acc=fcAcc,
+                        mods=row['mods']
+                    )
 
-                calc.configure(
-                    filename = row['bid'],
-                    accuracy = fcAcc,
-                    mode = gm,
-                    mods = row['mods'],
-                )
+                    with open(f".data/maps/{row['bid']}.osu", 'rb') as f:
+                        ezpp.calculate_data(f.read())
 
-                ifFc, row['difficulty'] = calc.calculate_pp()
+                    pp_if_fc, star_rating = (
+                        ezpp.get_pp(),
+                        ezpp.get_sr()
+                    )
 
                 if row['pp'] != 0:
                     row['pp'] = f"{row['pp']:,.2f}pp"
@@ -292,7 +295,7 @@ class Akatsuki(commands.Cog):
                     # the amount it would have been for an fc
                     # (with acc corrected for misses).
                     if not is_fc:
-                        row['fcPP'] = f"\n▸ \❌**{row['nmiss']}** ({ifFc:,.2f}pp for {fcAcc:.2f}% FC)"
+                        row['fcPP'] = f"\n▸ \❌**{row['nmiss']}** ({pp_if_fc:,.2f}pp for {fcAcc:.2f}% FC)"
                         row['comboed'] = '{s_combo:,}/{b_combo:,}x'.format(**row)
                     else:
                         row['fcPP'] = ''
@@ -303,7 +306,7 @@ class Akatsuki(commands.Cog):
 
                 # Mods string
                 if row['mods']:
-                    row['mods'] = f"+{mods_readable(row['mods'])}"
+                    row['mods'] = f"+{Mods(row['mods'])!r}"
                 else:
                     row['mods'] = 'NM'
 
@@ -319,7 +322,7 @@ class Akatsuki(commands.Cog):
                     '▸ {grade} **{acc:,.2f}% {pp} {mods}**{fcPP}',
                     '▸ {{ {n100}x100, {n50}x50 }} {comboed}',
                     '▸ \⭐{difficulty:.2f} \🎵{bpm:,} \🕰️{length} **AR**{ar:.2f} **OD**{od:.2f}'
-                )).format(**row))
+                )).format(**row, difficulty=star_rating))
 
             e.add_field(
                 name = '** **', # empty title
@@ -391,7 +394,7 @@ class Akatsuki(commands.Cog):
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
-            if not (res := await self.bot.db.fetch(
+            if not (row := await self.bot.db.fetch(
                 # Get all information we need for the embed.
                 'SELECT s.score, s.pp, s.accuracy acc, s.max_combo '
                 's_combo, s.mods, s.300_count n300, s.100_count n100, '
@@ -409,8 +412,8 @@ class Akatsuki(commands.Cog):
             )): return await ctx.send('The user has no scores!')
 
             e = discord.Embed(
-                title = res['sn'],
-                url = f"https://akatsuki.pw/b/{res['bid']}",
+                title = row['sn'],
+                url = f"https://akatsuki.pw/b/{row['bid']}",
                 colour = self.bot.config.embed_colour
             )
 
@@ -436,79 +439,83 @@ class Akatsuki(commands.Cog):
             # Letter grade
             # This is done.. stragely
             # TODO: don't do strangely?
-            res['grade'] = self.bot.get_emoji(
+            row['grade'] = self.bot.get_emoji(
                 self.bot.config.akatsuki['grade_emojis'][
                     accuracy_grade(
-                        gm, res['acc'], res['mods'],
-                        res['n300'], res['n100'], res['n50'],
-                        res['nmiss']
-                    ) if res['completed'] != 0 else 'F'
+                        gm, row['acc'], row['mods'],
+                        row['n300'], row['n100'], row['n50'],
+                        row['nmiss']
+                    ) if row['completed'] != 0 else 'F'
                 ]
             )
 
-            if res['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
-                res['hit_length'] = int(res['hit_length'] / 1.5)
-                res['bpm'] = int(res['bpm'] * 1.5)
-            elif res['mods'] & Mods.HALFTIME:
-                res['hit_length'] = int(res['hit_length'] * 1.5)
-                res['bpm'] = int(res['bpm'] / 1.5)
+            if row['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
+                row['hit_length'] = int(row['hit_length'] / 1.5)
+                row['bpm'] = int(row['bpm'] * 1.5)
+            elif row['mods'] & Mods.HALFTIME:
+                row['hit_length'] = int(row['hit_length'] * 1.5)
+                row['bpm'] = int(row['bpm'] / 1.5)
 
             # the rumoi no-join method
-            pp_column = 'score' if res['ranked'] == 5 else 'pp'
+            pp_column = 'score' if row['ranked'] == 5 else 'pp'
 
             # Length and ranked status as formatted strings
-            res['length'] = seconds_readable(int(res['hit_length']))
-            res['ranked'] = status_readable(res['ranked'])
+            row['length'] = seconds_readable(int(row['hit_length']))
+            row['ranked'] = status_readable(row['ranked'])
 
-            is_fc = (res['s_combo'] > int(res['b_combo'] * 0.98) and
-                     res['nmiss'] == 0)
+            is_fc = (row['s_combo'] > int(row['b_combo'] * 0.98) and
+                     row['nmiss'] == 0)
 
             if is_fc:
-                fcAcc = res['acc']
+                fcAcc = row['acc']
             else:
                 fcAcc = (
                     calc_accuracy_std(
-                        n300 = res['n300'],
-                        n100 = res['n100'],
-                        n50 = res['n50'],
+                        n300 = row['n300'],
+                        n100 = row['n100'],
+                        n50 = row['n50'],
                         nmiss = 0
                     ) if gm == 0 else
                     calc_accuracy_taiko(
-                        n300 = res['n300'],
-                        n150 = res['n100'], # lol
+                        n300 = row['n300'],
+                        n150 = row['n100'], # lol
                         nmiss = 0
                     )
                 ) * 100.0
 
             # Use oppai to calculate pp if FC,
             # along with star rating with mods.
-            calc = Owoppai()
+            with OppaiWrapper('oppai-ng/liboppai.so') as ezpp:
+                ezpp.configure(
+                    mode=gm,
+                    acc=fcAcc,
+                    mods=row['mods']
+                )
 
-            calc.configure(
-                filename = res['bid'],
-                accuracy = fcAcc,
-                mode = gm,
-                mods = res['mods'],
-            )
+                with open(f".data/maps/{row['bid']}.osu", 'rb') as f:
+                    ezpp.calculate_data(f.read())
 
-            ifFc, res['difficulty'] = calc.calculate_pp()
+                pp_if_fc, star_rating = (
+                    ezpp.get_pp(),
+                    ezpp.get_sr()
+                )
 
-            if res[pp_column] != 0:
-                res['pp'] = f"{res[pp_column]:,.2f}pp"
+            if row[pp_column] != 0:
+                row['pp'] = f"{row[pp_column]:,.2f}pp"
 
                 # If the user didn't fc, we need to print out
                 # the amount it would have been for an fc
                 # (with acc corrected for misses).
-                res['fcPP'] = f'\n▸ {ifFc:,.2f}pp for {fcAcc:.2f}% FC' if not is_fc else ''
+                row['fcPP'] = f'\n▸ {pp_if_fc:,.2f}pp for {fcAcc:.2f}% FC' if not is_fc else ''
             else:
-                res['pp'] = f"{res['score']:,}"
-                res['fcPP'] = ''
+                row['pp'] = f"{row['score']:,}"
+                row['fcPP'] = ''
 
             # Mods string
-            if res['mods']:
-                res['mods'] = f"+{mods_readable(res['mods'])}"
+            if row['mods']:
+                row['mods'] = f"+{Mods(row['mods'])!r}"
             else:
-                res['mods'] = 'NM'
+                row['mods'] = 'NM'
 
             embeds = {
                 'Score information': '\n'.join((
@@ -522,19 +529,19 @@ class Akatsuki(commands.Cog):
             for k, v in embeds.items():
                 e.add_field(
                     name = k,
-                    value = v.format(**res),
+                    value = v.format(**row, difficulty=star_rating),
                     inline = False
                 )
 
             # format time played for the footer
-            played_at = seconds_readable_full(int(time.time() - res['time']))
+            played_at = seconds_readable_full(int(time.time() - row['time']))
             e.set_footer(text = ' | '.join([
                 f'Aika v{self.bot.version}',
                 f'Score submitted {played_at} ago.'
             ]))
 
             e.set_thumbnail(url = f"https://a.akatsuki.pw/{user['id']}")
-            e.set_image(url = f"https://assets.ppy.sh/beatmaps/{res['bsid']}/covers/cover.jpg")
+            e.set_image(url = f"https://assets.ppy.sh/beatmaps/{row['bsid']}/covers/cover.jpg")
             await ctx.send(embed = e)
 
     @commands.command(aliases=['linkosu'])
@@ -787,5 +794,5 @@ class Akatsuki(commands.Cog):
         await self.add_faq(*split)
         await ctx.send('New FAQ topic added!')
 
-def setup(bot: commands.Bot):
+def setup(bot: commands.Bot) -> None:
     bot.add_cog(Akatsuki(bot))

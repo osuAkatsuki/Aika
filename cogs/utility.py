@@ -10,7 +10,7 @@ from objects.aika import ContextWrap
 from utils import seconds_readable
 
 class Utility(commands.Cog):
-    def __init__(self, bot: Aika):
+    def __init__(self, bot: Aika) -> None:
         self.bot = bot
 
     @commands.command()

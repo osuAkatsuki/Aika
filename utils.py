@@ -7,30 +7,12 @@ from os import path
 from shutil import copyfile
 from typing import Optional
 
-from cmyui import Ansi
-from cmyui import log
+from cmyui.logging import Ansi
+from cmyui.logging import log
+from cmyui.osu.mods import Mods
 from requests import get as req_get
 
 from config import akatsuki
-from constants import Mods
-
-def mods_readable(m: int) -> str:
-    if not m: return ''
-
-    r: list[str] = []
-    if m & Mods.NOFAIL:       r.append('NF')
-    if m & Mods.EASY:         r.append('EZ')
-    if m & Mods.TOUCHSCREEN:  r.append('TD')
-    if m & Mods.HIDDEN:       r.append('HD')
-    if m & Mods.HARDROCK:     r.append('HR')
-    if m & Mods.NIGHTCORE:    r.append('NC')
-    elif m & Mods.DOUBLETIME: r.append('DT')
-    if m & Mods.RELAX:        r.append('RX')
-    if m & Mods.HALFTIME:     r.append('HT')
-    if m & Mods.FLASHLIGHT:   r.append('FL')
-    if m & Mods.SPUNOUT:      r.append('SO')
-    if m & Mods.SCOREV2:      r.append('V2')
-    return ''.join(r)
 
 def seconds_readable(seconds: int) -> str:
     r: list[str] = []
@@ -177,7 +159,7 @@ def truncate(s: str, max_len: int) -> str:
 def akatsuki_only(ctx) -> bool:
     return ctx.guild.id == akatsuki['id']
 
-def ensure_config() -> bool:
+def ensure_config_ready() -> bool:
     if path.exists('config.py'):
         return True
 

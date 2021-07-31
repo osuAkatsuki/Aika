@@ -15,7 +15,7 @@ from objects.aika import Leaderboard
 from utils import try_parse_float
 
 class User(commands.Cog):
-    def __init__(self, bot: Aika):
+    def __init__(self, bot: Aika) -> None:
         self.bot = bot
         self.voice_xp.start()
 

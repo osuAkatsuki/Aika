@@ -10,7 +10,7 @@ from objects.aika import Aika
 from objects.aika import ContextWrap
 
 class Guild(commands.Cog):
-    def __init__(self, bot: Aika):
+    def __init__(self, bot: Aika) -> None:
         self.bot = bot
 
     @commands.command()
@@ -44,9 +44,9 @@ class Guild(commands.Cog):
             # Create the muted role if it doesn't already exist.
             if not discord.utils.get(guild.roles, name='muted'):
                 role = await guild.create_role(
-                    name = 'muted',
-                    color = discord.Colour(0xE73C82), # pinkish
-                    reason = 'Aika moderation enabled.'
+                    name='muted',
+                    color=discord.Colour(0xE73C82), # pinkish
+                    reason='Aika moderation enabled.'
                 )
 
                 # Set it's permissions in each text channel.
@@ -64,7 +64,8 @@ class Guild(commands.Cog):
 
         # Update in SQL.
         await self.bot.db.execute(
-            'UPDATE aika_guilds SET moderation = %s '
+            'UPDATE aika_guilds '
+            'SET moderation = %s '
             'WHERE guildid = %s',
             [new, guild.id]
         )
@@ -82,14 +83,18 @@ class Guild(commands.Cog):
                 'Invalid syntax: `!moderation <on/off>`.')
 
         new = split[1] == 'on'
-        new_str = 'Enabled' if new else 'Disabled'
 
         # check if this is already the guild's setting
         if self.bot.cache['guilds'][ctx.guild.id]['moderation'] == new:
-            return 'No changes were made.'
+            return await ctx.send('No changes were made.')
 
-        await self.set_moderation(ctx.guild, new)
-        return await ctx.send(f'Moderation {new_str}.')
+        try:
+            await self.set_moderation(ctx.guild, new)
+        except discord.errors.Forbidden as e:
+            await ctx.send('Failed to enable moderation (missing permissions).')
+            return
+
+        await ctx.send(f"Moderation {'Enabled' if new else 'Disabled'}.")
 
 
     ##################
@@ -106,13 +111,19 @@ class Guild(commands.Cog):
         if guild_opts['moderation'] and role.name == 'muted':
             # they have deleted the muted role, turn moderation
             # off since we can no longer mute people safely.
-            await self.set_moderation(role.guild, False)
+            try:
+                await self.set_moderation(role.guild, False)
+            except discord.errors.Forbidden as e:
+                # TODO: perhaps we should inform them of the
+                # failure & broken moderation setting via either
+                # the guild's most active chat or the owner's dm?
+                return
 
-            # TODO: get the general channel of the guild somehow?
-            # i want to send a warning to the person who removed
-            # the role that we've disabled moderation, and that
-            # they can re-enable it if it was a mistake.. :/
-            # doing by dm can work but some people will block them
+            # TODO: we should probably inform them either way,
+            # even if the moderation option was indeed changed.
+            # also people can block dms, so the # general idea
+            # could also work as a fallback option. any channel
+            # could i suppose with a @mention.
 
     @commands.command()
     @commands.guild_only()
@@ -150,7 +161,7 @@ class Guild(commands.Cog):
         )
 
         if not res:
-            return await ctx.send("U are doing well young paddawan..")
+            return await ctx.send("young paddawan is doing well..")
 
         await ctx.send(embed=discord.Embed(
             title = f"{member}'s strikes",
@@ -195,11 +206,11 @@ class Guild(commands.Cog):
                 [u.id, ctx.guild.id, reason],
             )
 
-            nstrikes, = await self.bot.db.fetch(
+            nstrikes = (await self.bot.db.fetch(
                 'SELECT COUNT(*) FROM aika_strikes '
                 'WHERE discordid = %s AND guildid = %s',
                 [u.id, ctx.guild.id], _dict=False
-            )
+            ))[0]
 
             if nstrikes >= max_strikes:
                 # the user has hit the max, and will be banned.
@@ -249,10 +260,14 @@ class Guild(commands.Cog):
         period = re['period']
 
         # Adjust the duration for the period.
-        if   period == 'm': duration *= 60
-        elif period == 'h': duration *= 60 * 60
-        elif period == 'd': duration *= 60 * 60 * 24
-        elif period == 'w': duration *= 60 * 60 * 24 * 7
+        if   period == 'm':
+            duration *= 60
+        elif period == 'h':
+            duration *= 60 * 60
+        elif period == 'd':
+            duration *= 60 * 60 * 24
+        elif period == 'w':
+            duration *= 60 * 60 * 24 * 7
 
         mutes = []
 
@@ -289,5 +304,5 @@ class Guild(commands.Cog):
         await ctx.send(f"Mute(s) applied to {users}.")
 
 
-def setup(bot: commands.Bot):
+def setup(bot: commands.Bot) -> None:
     bot.add_cog(Guild(bot))
