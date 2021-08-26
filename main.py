@@ -19,4 +19,3 @@ if __name__ == '__main__':
         # TODO: support for privileged intents
 
         Aika(intents=intents).run() # blocking call
-

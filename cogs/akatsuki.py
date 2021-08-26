@@ -6,6 +6,7 @@
 # i'm witing it for my own use case.
 
 import asyncio
+import os
 import time
 from collections import defaultdict
 from datetime import datetime as dt
@@ -271,8 +272,28 @@ class Akatsuki(commands.Cog):
                         n150 = row['n100'], # lol
                         nmiss = 0)) * 100.0
 
+                bmap_id = row['bid']
+                filepath = f".data/maps/{bmap_id}.osu"
+                if not os.path.exists(filepath):
+                    # file not on disk, download from osu!api
+                    async with self.bot.http_sess.get(f'https://old.ppy.sh/osu/{bmap_id}') as resp:
+                        if not resp or resp.status != 200:
+                            log(f'Failed to get .osu file for {bmap_id}', Ansi.LRED)
+                            await ctx.send('Failed to find .osu file.')
+                            return
+
+                        with open(filepath, 'wb+') as f:
+                            content = await resp.read()
+                            f.write(await resp.read())
+                else:
+                    # file found on disk, read from there
+                    with open(filepath, 'rb') as f:
+                        content = f.read()
+
                 # Use oppai to calculate pp if FC,
                 # along with star rating with mods.
+                # NOTE: this is wrong still, since we lost oppai-ng source,
+                # we *really* have to use the old binary :(
                 with OppaiWrapper('oppai-ng/liboppai.so') as ezpp:
                     ezpp.configure(
                         mode=gm,
@@ -280,8 +301,7 @@ class Akatsuki(commands.Cog):
                         mods=row['mods']
                     )
 
-                    with open(f".data/maps/{row['bid']}.osu", 'rb') as f:
-                        ezpp.calculate_data(f.read())
+                    ezpp.calculate_data(content)
 
                     pp_if_fc, star_rating = (
                         ezpp.get_pp(),
@@ -483,8 +503,28 @@ class Akatsuki(commands.Cog):
                     )
                 ) * 100.0
 
+            bmap_id = row['bid']
+            filepath = f".data/maps/{bmap_id}.osu"
+            if not os.path.exists(filepath):
+                # file not on disk, download from osu!api
+                async with self.bot.http_sess.get(f'https://old.ppy.sh/osu/{bmap_id}') as resp:
+                    if not resp or resp.status != 200:
+                        log(f'Failed to get .osu file for {bmap_id}', Ansi.LRED)
+                        await ctx.send('Failed to find .osu file.')
+                        return
+
+                    with open(filepath, 'wb+') as f:
+                        content = await resp.read()
+                        f.write(await resp.read())
+            else:
+                # file found on disk, read from there
+                with open(filepath, 'rb') as f:
+                    content = f.read()
+
             # Use oppai to calculate pp if FC,
             # along with star rating with mods.
+            # NOTE: this is wrong still, since we lost oppai-ng source,
+            # we *really* have to use the old binary :(
             with OppaiWrapper('oppai-ng/liboppai.so') as ezpp:
                 ezpp.configure(
                     mode=gm,
@@ -492,8 +532,7 @@ class Akatsuki(commands.Cog):
                     mods=row['mods']
                 )
 
-                with open(f".data/maps/{row['bid']}.osu", 'rb') as f:
-                    ezpp.calculate_data(f.read())
+                ezpp.calculate_data(content)
 
                 pp_if_fc, star_rating = (
                     ezpp.get_pp(),

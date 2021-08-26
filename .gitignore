@@ -2,6 +2,7 @@ config.py
 .vscode/settings.json
 pp/maps/
 pp/oppai
+.data/maps
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
