@@ -61,13 +61,16 @@ class Akatsuki(commands.Cog):
 
     @commands.Cog.listener()
     @commands.guild_only()
-    async def on_message(self, msg: discord.Message) -> None:
+    async def on_message(self, message: discord.Message) -> None:
         await self.bot.wait_until_ready()
 
-        if not msg.content or msg.author.bot:
+        if not message.content or message.author.bot:
             return
 
-        if msg.guild.id != self.bot.config.akatsuki['id']:
+        if not message.guild:
+            return
+
+        if message.guild.id != self.bot.config.akatsuki['id']:
             return
 
         channels = self.bot.config.akatsuki['channels']
@@ -77,39 +80,39 @@ class Akatsuki(commands.Cog):
             return
 
         if (
-            msg.channel.id == channels['verify'] and
-            not await self.bot.is_owner(msg.author)
+            message.channel.id == channels['verify'] and
+            not await self.bot.is_owner(message.author)
         ):
             # sooo shit should be command
-            if msg.content[1:] == 'verify':
-                members = discord.utils.get(msg.guild.roles, name='Members')
-                await msg.author.add_roles(members)
+            if message.content[1:] == 'verify':
+                members = discord.utils.get(message.guild.roles, name='Members')
+                await message.author.add_roles(members)
 
-            await msg.delete()
+            await message.delete()
 
-        elif msg.channel.id == channels['user_report']:
-            if msg.role_mentions:
+        elif message.channel.id == channels['user_report']:
+            if message.role_mentions:
                 try:
-                    await msg.author.send('\n'.join((
+                    await message.author.send('\n'.join((
                         'Your player report has not been submitted due to role mentions.',
                         'Please reformat your message without these mentions to submit a report.',
-                        f'```\n{msg.clean_content}```'
+                        f'```\n{message.clean_content}```'
                     )))
                 except discord.Forbidden:
-                    log(f'Failed to DM {msg.author}.', Ansi.LRED)
-                return await msg.delete()
+                    log(f'Failed to DM {message.author}.', Ansi.LRED)
+                return await message.delete()
 
-            admin_reports = msg.guild.get_channel(channels['admin_report'])
+            admin_reports = message.guild.get_channel(channels['admin_report'])
 
             e = discord.Embed(
                 colour = self.bot.config.embed_colour,
                 title = 'New report recieved',
-                description = f'{msg.author.mention} has submitted a player report.'
+                description = f'{message.author.mention} has submitted a player report.'
             )
-            e.add_field(name = 'Report content', value = msg.clean_content)
+            e.add_field(name = 'Report content', value = message.clean_content)
             e.set_footer(text = f'Aika v{self.bot.version}')
             await admin_reports.send(embed = e)
-            await msg.delete()
+            await message.delete()
 
 
     ############

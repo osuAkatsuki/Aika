@@ -147,12 +147,18 @@ class User(commands.Cog):
         if not message.content or message.author.bot:
             return # Don't track xp for images & bots..
 
+        if not message.guild:
+            return
+
         await self.increment_xp(message.author.id, message.guild.id)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before: discord.Message,
                               after: discord.Message) -> None:
         await self.bot.wait_until_ready()
+
+        if not after.guild:
+            return
 
         if not after.content or after.author.bot:
             return # Don't track xp for images & bots..
