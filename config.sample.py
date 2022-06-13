@@ -25,6 +25,11 @@ mysql = {
     'user': 'root'
 }
 
+osu_api_keys = [
+    "your_api_key",
+    "another_api_key",
+]
+
 # Aika's version #
 version = 1.0
 

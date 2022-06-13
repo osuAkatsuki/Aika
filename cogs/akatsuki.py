@@ -6,6 +6,7 @@
 # i'm witing it for my own use case.
 
 import asyncio
+import random
 import os
 import time
 from collections import defaultdict
@@ -154,14 +155,16 @@ class Akatsuki(commands.Cog):
 
             # ensure the gm is present and is decimal
             if len(msg) < idx or not msg[idx].isdecimal():
-                return await ctx.send(
+                await ctx.send(
                     'Invalid syntax: `!top <-gm #> <-rx> <username/@mentions ...>`.')
+                return
 
             # get the gm flag, make sure it's in valid range
             gm = int(msg.pop(idx))
             if gm not in range(2):
-                return await ctx.send(
+                await ctx.send(
                     'Invalid gamemode (only osu! & osu!taiko supported).')
+                return
 
         else:
             # no gamemode flag specified, default to osu!standard
@@ -194,7 +197,7 @@ class Akatsuki(commands.Cog):
             table = 'scores_relax' if rx else 'scores'
             if not (res := await self.bot.db.fetchall(
                 'SELECT s.score, s.pp, s.accuracy acc, s.max_combo s_combo, '
-                's.mods, s.300_count n300, s.100_count n100, '
+                's.mods, s.300_count n300, s.100_count n100, s.beatmap_md5, '
                 's.50_count n50, s.misses_count nmiss, s.time, s.completed, '
 
                 'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, b.bpm, '
@@ -234,6 +237,28 @@ class Akatsuki(commands.Cog):
             # We'll eventually join them all by newlines into the
             scores = []
             for idx, row in enumerate(res):
+                # XXX:HACK: we certainly don't need to do an api request *every* time.
+                # we should be updating the info in the db and have a ttl for it
+                async with self.bot.http_sess.get(
+                    'https://old.ppy.sh/api/get_beatmaps',
+                    params={
+                        'h': row['beatmap_md5'],
+                        'k': random.choice(self.bot.config.osu_api_keys),
+                    },
+                ) as req:
+                    map_info = await req.json(content_type=None)
+
+                    if not map_info or req.status != 200:
+                        await ctx.send('Error getting map.')
+                        return
+
+                    map_info = map_info[0]
+
+                    row['hit_length'] = int(map_info['hit_length'])
+                    row['bpm'] = float(map_info['bpm'])
+                    row['b_combo'] = int(map_info['max_combo'])
+                    row['sn'] = f"{map_info['artist']} - {map_info['title']} [{map_info['version']}]"
+                    row['bid'] = int(map_info['beatmap_id'])
 
                 # Iterate through scores, adding them to `scores`.
                 if row['mods'] & (Mods.DOUBLETIME | Mods.NIGHTCORE):
@@ -295,8 +320,6 @@ class Akatsuki(commands.Cog):
 
                 # Use oppai to calculate pp if FC,
                 # along with star rating with mods.
-                # NOTE: this is wrong still, since we lost oppai-ng source,
-                # we *really* have to use the old binary :(
                 with OppaiWrapper('oppai-ng/liboppai.so') as ezpp:
                     ezpp.configure(
                         mode=gm,
@@ -311,21 +334,18 @@ class Akatsuki(commands.Cog):
                         ezpp.get_sr()
                     )
 
-                if row['pp'] != 0:
-                    row['pp'] = f"{row['pp']:,.2f}pp"
+                    row['ar'] = ezpp.get_ar()
+                    row['od'] = ezpp.get_od()
 
-                    # If the user didn't fc, we need to print out
-                    # the amount it would have been for an fc
-                    # (with acc corrected for misses).
-                    if not is_fc:
-                        row['fcPP'] = f"\n▸ \❌**{row['nmiss']}** ({pp_if_fc:,.2f}pp for {fcAcc:.2f}% FC)"
-                        row['comboed'] = '{s_combo:,}/{b_combo:,}x'.format(**row)
-                    else:
-                        row['fcPP'] = ''
-                        row['comboed'] = 'FC'
+                # If the user didn't fc, we need to print out
+                # the amount it would have been for an fc
+                # (with acc corrected for misses).
+                if not is_fc:
+                    row['fcPP'] = f"\n▸ \❌**{row['nmiss']}** ({pp_if_fc:,.2f}pp for {fcAcc:.2f}% FC)"
+                    row['comboed'] = '{s_combo:,}/{b_combo:,}x'.format(**row)
                 else:
-                    row['pp'] = f"{row['score']:,}"
                     row['fcPP'] = ''
+                    row['comboed'] = 'FC'
 
                 # Mods string
                 if row['mods']:
@@ -333,16 +353,17 @@ class Akatsuki(commands.Cog):
                 else:
                     row['mods'] = 'NM'
 
-                if (r := regexes['song_name'].match(row['sn'])):
+                if r := regexes['song_name'].match(row['sn']):
                     row['sn'] = f"{truncate(r['sn'], 35)} [{truncate(r['diff'], 25)}]"
                 else:
-                    return await ctx.send('<@285190493703503872> broke regex')
+                    await ctx.send('<@285190493703503872> broke regex')
+                    return
 
                 row['idx'] = idx + 1
 
                 scores.append('\n'.join((
                     '{idx}. [{sn}](https://akatsuki.pw/b/{bid})',
-                    '▸ {grade} **{acc:,.2f}% {pp} {mods}**{fcPP}',
+                    '▸ {grade} **{acc:,.2f}% {pp:,.2f}pp {mods}**{fcPP}',
                     '▸ {{ {n100}x100, {n50}x50 }} {comboed}',
                     '▸ \⭐{difficulty:.2f} \🎵{bpm:,} \🕰️{length} **AR**{ar:.2f} **OD**{od:.2f}'
                 )).format(**row, difficulty=star_rating))
@@ -376,14 +397,16 @@ class Akatsuki(commands.Cog):
 
             # ensure the gm is present and is decimal
             if len(msg) < idx or not msg[idx].isdecimal():
-                return await ctx.send(
+                await ctx.send(
                     'Invalid syntax: `!recent <-rx> <-gm #> <username/@mentions ...>`.')
+                return
 
             # get the gm flag, make sure it's in valid range
             gm = int(msg.pop(idx))
             if gm not in range(2):
-                return await ctx.send(
+                await ctx.send(
                     'Invalid gamemode (only osu! & osu!taiko supported).')
+                return
 
         else:
             # no gamemode flag specified, default to osu!standard
@@ -401,19 +424,20 @@ class Akatsuki(commands.Cog):
                 users = [await self.get_osu_from_name(' '.join(msg))]
 
         if not all(users):
-            return await ctx.send('Could not find all users specified.')
+            await ctx.send('Could not find all users specified.')
+            return
 
         # only allow bot owner to fetch restricted users
         if (
             not all(u['priv'] & 1 for u in users) and
             not await self.bot.is_owner(ctx.author)
         ):
-            return await ctx.send(
-                "You have insufficient privileges.")
+            await ctx.send('You have insufficient privileges.')
+            return
 
         if len(users) > 3:
-            return await ctx.send(
-                'No more than 3 users may be requested at a time!')
+            await ctx.send('No more than 3 users may be requested at a time!')
+            return
 
         for user in users:
             table = 'scores_relax' if rx else 'scores'
@@ -423,8 +447,7 @@ class Akatsuki(commands.Cog):
                 's_combo, s.mods, s.300_count n300, s.100_count n100, '
                 's.50_count n50, s.misses_count nmiss, s.time, s.completed, '
 
-                'b.song_name sn, b.beatmap_id bid, b.beatmapset_id bsid, b.bpm, '
-                'b.ar, b.od, b.max_combo as b_combo, b.hit_length, b.ranked '
+                's.beatmap_md5, b.ranked, '
 
                 f'FROM {table} s '
                 'LEFT JOIN beatmaps b USING(beatmap_md5) '
@@ -432,7 +455,34 @@ class Akatsuki(commands.Cog):
                 'AND s.play_mode = %s '
                 'ORDER BY s.time DESC LIMIT 1',
                 [user['id'], gm]
-            )): return await ctx.send('The user has no scores!')
+                )
+            ):
+                await ctx.send('The user has no scores!')
+                return
+
+            # XXX:HACK: we certainly don't need to do an api request *every* time.
+            # we should be updating the info in the db and have a ttl for it
+            async with self.bot.http_sess.get(
+                'https://old.ppy.sh/api/get_beatmaps',
+                params={
+                    'h': row['beatmap_md5'],
+                    'k': random.choice(self.bot.config.osu_api_keys),
+                },
+            ) as req:
+                map_info = await req.json(content_type=None)
+
+                if not map_info or req.status != 200:
+                    await ctx.send(f'Error getting map ({row["beatmap_md5"]}).')
+                    return
+
+                map_info = map_info[0]
+
+                row['hit_length'] = int(map_info['hit_length'])
+                row['bpm'] = float(map_info['bpm'])
+                row['b_combo'] = int(map_info['max_combo'])
+                row['sn'] = f"{map_info['artist']} - {map_info['title']} [{map_info['version']}]"
+                row['bid'] = int(map_info['beatmap_id'])
+                row['bsid'] = int(map_info['beatmapset_id'])
 
             e = discord.Embed(
                 title = row['sn'],
@@ -478,9 +528,6 @@ class Akatsuki(commands.Cog):
             elif row['mods'] & Mods.HALFTIME:
                 row['hit_length'] = int(row['hit_length'] * 1.5)
                 row['bpm'] = int(row['bpm'] / 1.5)
-
-            # the rumoi no-join method
-            pp_column = 'score' if row['ranked'] == 5 else 'pp'
 
             # Length and ranked status as formatted strings
             row['length'] = seconds_readable(int(row['hit_length']))
@@ -542,16 +589,15 @@ class Akatsuki(commands.Cog):
                     ezpp.get_sr()
                 )
 
-            if row[pp_column] != 0:
-                row['pp'] = f"{row[pp_column]:,.2f}pp"
+                row['ar'] = round(ezpp.get_ar(), 2)
+                row['od'] = round(ezpp.get_od(), 2)
 
-                # If the user didn't fc, we need to print out
-                # the amount it would have been for an fc
-                # (with acc corrected for misses).
-                row['fcPP'] = f'\n▸ {pp_if_fc:,.2f}pp for {fcAcc:.2f}% FC' if not is_fc else ''
-            else:
-                row['pp'] = f"{row['score']:,}"
-                row['fcPP'] = ''
+            # If the user didn't fc, we need to print out
+            # the amount it would have been for an fc
+            # (with acc corrected for misses).
+            row['fcPP'] = (
+                f'\n▸ {pp_if_fc:,.2f}pp for {fcAcc:.2f}% FC' if not is_fc else ''
+            )
 
             # Mods string
             if row['mods']:
@@ -561,7 +607,7 @@ class Akatsuki(commands.Cog):
 
             embeds = {
                 'Score information': '\n'.join((
-                    '▸ {grade} **{acc:.2f}% {pp}** {mods} {s_combo:,}/{b_combo:,}x{fcPP}',
+                    '▸ {grade} **{acc:.2f}% {pp:,.2f}** {mods} {s_combo:,}/{b_combo:,}x{fcPP}',
                     '▸ {{ {n100}x100, {n50}x50, {nmiss}xM }}')),
                 'Beatmap information': '\n'.join((
                     '**{ranked} \⭐ {difficulty:.2f} | {length} @ \🎵 {bpm}**',
@@ -590,11 +636,12 @@ class Akatsuki(commands.Cog):
     @commands.guild_only()
     async def link(self, ctx: ContextWrap) -> None:
         if user := await self.get_osu(ctx.author.id):
-            return await ctx.send('\n'.join((
+            await ctx.send('\n'.join((
                 'Your Discord has already been linked to an osu!Akatsuki account!',
                 'If you would like to remove this, please contact cmyui#0425 directly.',
                 f'> **https://akatsuki.pw/u/{user["id"]}**'
             )))
+            return
 
         try: # Send PM first, since if we fail we need to warn user.
             await ctx.author.send('\n'.join((
@@ -602,10 +649,11 @@ class Akatsuki(commands.Cog):
                 f'> `!vdiscord {((ctx.author.id << 0o14) | 0x993) >> 1}`'
             )))
         except discord.Forbidden:
-            return await ctx.send('\n'.join((
+            await ctx.send('\n'.join((
                 'I was unable to DM you your code!',
                 'You probably have DMs from non-friends disabled on Discord..'
             )))
+            return
 
         # "Unlock" the account by setting the ID to 0 instead of null
         await self.bot.db.execute(
@@ -626,7 +674,8 @@ class Akatsuki(commands.Cog):
     @commands.guild_only()
     async def unlink(self, ctx: ContextWrap) -> None:
         if not (user := await self.get_osu(ctx.author.id)):
-            return await ctx.send("Couldn't find a linked account!")
+            await ctx.send("Couldn't find a linked account!")
+            return
 
         await self.bot.db.execute(
             'DELETE FROM aika_akatsuki '
@@ -634,17 +683,19 @@ class Akatsuki(commands.Cog):
             [ctx.author.id, user['id']]
         )
 
-        return await ctx.send('\n'.join([
+        await ctx.send('\n'.join([
             'Account unlinked.',
             f'(https://akatsuki.pw/u/{user["id"]})'
         ]))
+        return
 
     @commands.command(hidden=True)
     @commands.guild_only()
     @commands.check(akatsuki_only)
     async def next_roleupdate(self, ctx: ContextWrap) -> None:
         if not (next_iteration := self.manage_roles.next_iteration):
-            return await ctx.send('Role updates are currently disabled.')
+            await ctx.send('Role updates are currently disabled.')
+            return
 
         t = int((next_iteration - dt.now(tz.utc)).total_seconds())
         await ctx.send(f'Next iteration in {t // 60}:{t % 60:02d}.')
@@ -816,22 +867,26 @@ class Akatsuki(commands.Cog):
 
         # topic cannot be an int or it will break id/topic search
         if topic.isdecimal():
-            return await ctx.send(
+            await ctx.send(
                 'Topic name cannot be a number (it may include them, but not be limited to just numbers).')
+            return
 
         # subtract the max amount of characters into
         # a var so we can send back the length overshot.
         if (e := len(topic) - 32) > 0:
-            return await ctx.send(
+            await ctx.send(
                 f'Your topic is {e} characters too long.')
+            return
 
         if (e := len(title) - 127) > 0:
-            return await ctx.send(
+            await ctx.send(
                 f'Your title is {e} characters too long.')
+            return
 
         if (e := len(content) - 1024) > 0:
-            return await ctx.send(
+            await ctx.send(
                 f'Your content is {e} characters too long.')
+            return
 
         await self.add_faq(*split)
         await ctx.send('New FAQ topic added!')
